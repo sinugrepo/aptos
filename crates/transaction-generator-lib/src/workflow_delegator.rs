@@ -7,7 +7,7 @@ use crate::{
     entry_points::EntryPointTransactionGenerator, EntryPoints, ObjectPool,
     ReliableTransactionSubmitter, TransactionGenerator, TransactionGeneratorCreator, WorkflowKind,
     WorkflowProgress,
-    tournament_generator::TournamentSetupNewRoundTransactionGenerator,
+    tournament_generator::{TournamentStartNewRoundTransactionGenerator, TournamentMovePlayersToRoundTransactionGenerator},
 };
 use aptos_logger::{info, sample, sample::SampleRate};
 use aptos_sdk::{
@@ -296,8 +296,10 @@ impl WorkflowTxnGeneratorCreator {
                 )
             },
             WorkflowKind::Tournament { num_players, join_batch } => {
-                let created_pool = Arc::new(ObjectPool::new());
-                let setup_pool = Arc::new(ObjectPool::new());
+                let create_accounts = initial_account_pool.is_none();
+                let created_pool = initial_account_pool.unwrap_or(Arc::new(ObjectPool::new()));
+                let player_setup_pool = Arc::new(ObjectPool::new());
+                let round_created_pool = Arc::new(ObjectPool::new());
                 let in_round_pool = Arc::new(ObjectPool::new());
                 let finished_pool = Arc::new(ObjectPool::new());
 
@@ -313,8 +315,13 @@ impl WorkflowTxnGeneratorCreator {
                 let tournament_setup_player_worker =  CustomModulesDelegationGeneratorCreator::create_worker(init_txn_factory.clone(), root_account, txn_executor, &mut packages, &mut EntryPointTransactionGenerator {
                     entry_point: EntryPoints::TournamentSetupPlayer,
                 }).await;
-                let tournament_setup_round_worker =  CustomModulesDelegationGeneratorCreator::create_worker(init_txn_factory.clone(), root_account, txn_executor, &mut packages, &mut TournamentSetupNewRoundTransactionGenerator::new(
-                    setup_pool.clone(),
+                let tournament_setup_round_worker =  CustomModulesDelegationGeneratorCreator::create_worker(init_txn_factory.clone(), root_account, txn_executor, &mut packages, &mut TournamentStartNewRoundTransactionGenerator::new(
+                    player_setup_pool.clone(),
+                    round_created_pool.clone(),
+                    join_batch,
+                )).await;
+                let tournament_move_players_to_round_worker =  CustomModulesDelegationGeneratorCreator::create_worker(init_txn_factory.clone(), root_account, txn_executor, &mut packages, &mut TournamentMovePlayersToRoundTransactionGenerator::new(
+                    round_created_pool.clone(),
                     in_round_pool.clone(),
                     join_batch,
                 )).await;
@@ -324,15 +331,21 @@ impl WorkflowTxnGeneratorCreator {
 
                 let packages = Arc::new(packages);
 
-                let creators: Vec<Box<dyn TransactionGeneratorCreator>> = vec![
-                    Box::new(AccountGeneratorCreator::new(
-                        txn_factory.clone(),
-                        None,
-                        Some(created_pool.clone()),
-                        num_players,
-                        // 2 APT
-                        200_000_000,
-                    )),
+                let mut creators: Vec<Box<dyn TransactionGeneratorCreator>> = vec![];
+                if create_accounts {
+                    creators.push(
+                        Box::new(AccountGeneratorCreator::new(
+                            txn_factory.clone(),
+                            None,
+                            Some(created_pool.clone()),
+                            num_players,
+                            // 2 APT
+                            400_000_000,
+                        ))
+                    );
+                }
+
+                creators.push(
                     Box::new(
                         AccountsPoolWrapperCreator::new(
                             Box::new(CustomModulesDelegationGeneratorCreator::new_raw(
@@ -341,14 +354,25 @@ impl WorkflowTxnGeneratorCreator {
                                 tournament_setup_player_worker,
                             )),
                             created_pool.clone(),
-                            Some(setup_pool.clone()),
+                            Some(player_setup_pool.clone()),
                         )
                     ),
+                );
+                creators.push(
                     Box::new(CustomModulesDelegationGeneratorCreator::new_raw(
                         txn_factory.clone(),
                         packages.clone(),
                         tournament_setup_round_worker,
                     )),
+                );
+                creators.push(
+                    Box::new(CustomModulesDelegationGeneratorCreator::new_raw(
+                        txn_factory.clone(),
+                        packages.clone(),
+                        tournament_move_players_to_round_worker,
+                    )),
+                );
+                creators.push(
                     Box::new(
                         AccountsPoolWrapperCreator::new(
                             Box::new(CustomModulesDelegationGeneratorCreator::new_raw(
@@ -360,9 +384,15 @@ impl WorkflowTxnGeneratorCreator {
                             Some(finished_pool.clone()),
                         )
                     ),
-                ];
+                );
 
-                Self::new(stage_tracking, creators, vec![created_pool, setup_pool, in_round_pool], num_players)
+                let pool_per_stage = if create_accounts {
+                    vec![created_pool, player_setup_pool, round_created_pool, in_round_pool]
+                } else {
+                    vec![player_setup_pool, round_created_pool, in_round_pool]
+                };
+
+                Self::new(stage_tracking, creators, pool_per_stage, num_players)
             }
         }
     }
