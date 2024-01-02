@@ -105,7 +105,10 @@ impl TestConfig {
                 dump_annotated_targets: true,
                 dump_for_only_some_stages: None,
             }
-        } else if path.contains("/inlining/") || path.contains("/folding/") {
+        } else if path.contains("/inlining/")
+            || path.contains("/folding/")
+            || path.contains("/simplifier/")
+        {
             pipeline.add_processor(Box::new(LiveVarAnalysisProcessor {
                 with_copy_inference: true,
             }));
