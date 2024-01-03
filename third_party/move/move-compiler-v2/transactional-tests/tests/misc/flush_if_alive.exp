@@ -1,3 +1,13 @@
-processed 1 task
-
-==> Compiler v2 delivered same results!
+comparison between v1 and v2 failed:
+= processed 1 task
+= 
++ task 0 'publish'. lines 1-36:
++ Error: compilation errors:
++  error: cannot drop
++    ┌─ TEMPFILE:16:29
++    │
++ 16 │         let Cap2{x : _x} = c;
++    │                             ^
++ 
++ 
++ 

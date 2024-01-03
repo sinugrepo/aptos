@@ -7,13 +7,13 @@ module 0xcafe::vectors {
           {
             let s: u64 = 2;
             {
-              let (v: &mut vector<u64>) = Tuple(Borrow(Mutable)(v));
+              let (v$0$: &mut vector<u64>) = Tuple(Borrow(Mutable)(v));
               {
                 let i: u64 = 0;
                 loop {
-                  if Lt<u64>(i, vector::length<u64>(v)) {
+                  if Lt<u64>(i, vector::length<u64>(v$0$)) {
                     {
-                      let (e: &mut u64) = Tuple(vector::borrow_mut<u64>(v, i));
+                      let (e: &mut u64) = Tuple(vector::borrow_mut<u64>(v$0$, i));
                       e = s;
                       s: u64 = Add<u64>(s, 1)
                     };

@@ -5,16 +5,16 @@ module 0x12391283::M {
         {
           let gas_schedule_blob: vector<u8> = Vector<u8>(115, 115, 95, 112, 97, 99, 107, 101, 100, 32, 0, 0, 0, 0, 0, 0, 0);
           {
-            let (v: vector<u8>, init: u64) = Tuple(gas_schedule_blob, Cast(0));
+            let (v: vector<u8>, _) = Tuple(gas_schedule_blob, 0);
             {
-              let accu: u64 = init;
+              let accu: u64 = 0;
               {
-                let (v: vector<u8>) = Tuple(v);
-                vector::reverse<u8>(Borrow(Mutable)(v));
+                let (v$0$: vector<u8>) = Tuple(v);
+                vector::reverse<u8>(Borrow(Mutable)(v$0$));
                 loop {
-                  if Not(vector::is_empty<u8>(Borrow(Immutable)(v))) {
+                  if Not(vector::is_empty<u8>(Borrow(Immutable)(v$0$))) {
                     {
-                      let e: u8 = vector::pop_back<u8>(Borrow(Mutable)(v));
+                      let e: u8 = vector::pop_back<u8>(Borrow(Mutable)(v$0$));
                       {
                         let (elem: u8) = Tuple(e);
                         accu: u64 = {
@@ -39,16 +39,16 @@ module 0x12391283::M {
         {
           let gas_schedule_blob: vector<u8> = Vector<u8>(115, 115, 95, 112, 97, 99, 107, 101, 100, 32, 0, 0, 0, 0, 0, 0, 0);
           {
-            let (v: vector<u8>, init: u64) = Tuple(gas_schedule_blob, Cast(0));
+            let (v: vector<u8>, _) = Tuple(gas_schedule_blob, 0);
             {
-              let accu: u64 = init;
+              let accu: u64 = 0;
               {
-                let (v: vector<u8>) = Tuple(v);
-                vector::reverse<u8>(Borrow(Mutable)(v));
+                let (v$1$: vector<u8>) = Tuple(v);
+                vector::reverse<u8>(Borrow(Mutable)(v$1$));
                 loop {
-                  if Not(vector::is_empty<u8>(Borrow(Immutable)(v))) {
+                  if Not(vector::is_empty<u8>(Borrow(Immutable)(v$1$))) {
                     {
-                      let e: u8 = vector::pop_back<u8>(Borrow(Mutable)(v));
+                      let e: u8 = vector::pop_back<u8>(Borrow(Mutable)(v$1$));
                       {
                         let (elem: u8) = Tuple(e);
                         accu: u64 = {

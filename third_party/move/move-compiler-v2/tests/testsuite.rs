@@ -5,8 +5,8 @@
 use codespan_reporting::{diagnostic::Severity, term::termcolor::Buffer};
 use log::{debug, trace};
 use move_compiler_v2::{
-    annotate_units, disassemble_compiled_units, flow_insensitive_checkers, function_checker,
-    inliner, logging, pipeline,
+    annotate_units, ast_simplifier, disassemble_compiled_units, flow_insensitive_checkers,
+    function_checker, inliner, logging, pipeline,
     pipeline::{
         ability_checker::AbilityChecker, avail_copies_analysis::AvailCopiesAnalysisProcessor,
         copy_propagation::CopyPropagation, dead_store_elimination::DeadStoreElimination,
@@ -340,11 +340,16 @@ impl TestConfig {
         }
         if ok {
             trace!("After inlining, GlobalEnv={}", env.dump_env());
-        }
-
-        if ok {
             function_checker::check_access_and_use(&mut env, false);
             ok = Self::check_diags(&mut test_output.borrow_mut(), &env);
+        }
+        if ok {
+            // Run simplifier.  No code elimination for now.
+            ast_simplifier::run_simplifier(&mut env, false);
+            ok = Self::check_diags(&mut test_output.borrow_mut(), &env);
+        }
+        if ok {
+            trace!("After simplifier, GlobalEnv={}", env.dump_env());
         }
 
         if ok && self.dump_ast {
