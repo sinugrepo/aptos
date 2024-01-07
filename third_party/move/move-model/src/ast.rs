@@ -1454,6 +1454,16 @@ impl Pattern {
         }
     }
 
+    /// Returns true if this pattern contains no struct.
+    pub fn has_no_struct(&self) -> bool {
+        use Pattern::*;
+        match self {
+            Var(..) | Wildcard(..) | Error(..) => true,
+            Tuple(_, pats) => pats.iter().all(|p| p.has_no_struct()),
+            Struct(..) => false,
+        }
+    }
+
     fn collect_vars(r: &mut Vec<(NodeId, Symbol)>, p: &Pattern) {
         use Pattern::*;
         match p {
