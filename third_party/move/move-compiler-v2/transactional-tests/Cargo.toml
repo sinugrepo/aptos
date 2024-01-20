@@ -16,9 +16,6 @@ datatest-stable = "0.1.1"
 move-compiler-v2 = { path = ".." }
 move-transactional-test-runner = { path = "../../testing-infra/transactional-test-runner" }
 
-[features]
-verbose-debug-print = ["move-compiler-v2/verbose-debug-print"]
-
 [[test]]
 name = "tests"
 harness = false

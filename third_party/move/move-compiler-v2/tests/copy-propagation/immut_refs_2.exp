@@ -12,15 +12,9 @@ warning: Unused local variable `a`. Consider removing or prefixing with an under
 fun m::test($t0: u64): u64 {
      var $t1: u64
      var $t2: &u64
-     var $t3: u64
-     var $t4: u64
-     var $t5: u64
   0: $t2 := borrow_local($t0)
-  1: $t3 := infer($t0)
-  2: $t4 := infer($t3)
-  3: $t5 := infer($t4)
-  4: $t1 := infer($t5)
-  5: return $t1
+  1: $t1 := infer($t0)
+  2: return $t1
 }
 
 ============ after AvailableCopiesAnalysisProcessor: ================
@@ -29,21 +23,12 @@ fun m::test($t0: u64): u64 {
 fun m::test($t0: u64): u64 {
      var $t1: u64
      var $t2: &u64
-     var $t3: u64
-     var $t4: u64
-     var $t5: u64
      # before: {}, after: {}
   0: $t2 := borrow_local($t0)
      # before: {}, after: {}
-  1: $t3 := infer($t0)
-     # before: {}, after: {$t4 := $t3}
-  2: $t4 := infer($t3)
-     # before: {$t4 := $t3}, after: {$t4 := $t3, $t5 := $t4}
-  3: $t5 := infer($t4)
-     # before: {$t4 := $t3, $t5 := $t4}, after: {$t1 := $t5, $t4 := $t3, $t5 := $t4}
-  4: $t1 := infer($t5)
-     # before: {$t1 := $t5, $t4 := $t3, $t5 := $t4}, after: {$t1 := $t5, $t4 := $t3, $t5 := $t4}
-  5: return $t1
+  1: $t1 := infer($t0)
+     # before: {}, after: {}
+  2: return $t1
 }
 
 ============ after CopyPropagation: ================
@@ -52,15 +37,9 @@ fun m::test($t0: u64): u64 {
 fun m::test($t0: u64): u64 {
      var $t1: u64
      var $t2: &u64
-     var $t3: u64
-     var $t4: u64
-     var $t5: u64
   0: $t2 := borrow_local($t0)
-  1: $t3 := infer($t0)
-  2: $t4 := infer($t3)
-  3: $t5 := infer($t3)
-  4: $t1 := infer($t3)
-  5: return $t3
+  1: $t1 := infer($t0)
+  2: return $t1
 }
 
 ============ after DeadStoreElimination: ================
@@ -69,10 +48,7 @@ fun m::test($t0: u64): u64 {
 fun m::test($t0: u64): u64 {
      var $t1: u64
      var $t2: &u64
-     var $t3: u64
-     var $t4: u64
-     var $t5: u64
   0: $t2 := borrow_local($t0)
-  1: $t3 := infer($t0)
-  2: return $t3
+  1: $t1 := infer($t0)
+  2: return $t1
 }
