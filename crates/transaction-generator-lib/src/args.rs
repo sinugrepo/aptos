@@ -402,7 +402,7 @@ impl TransactionTypeArg {
             TransactionTypeArg::Tournament1mBy10k => TransactionType::Workflow{
                 workflow_kind: WorkflowKind::Tournament { num_players: 1000000, join_batch: 10000 },
                 num_modules: module_working_set_size,
-                move_stages_by_phase: true,
+                move_stages_by_phase: false,
                 use_account_pool: sender_use_account_pool,
             },
         }
