@@ -62,6 +62,9 @@ pub enum TransactionTypeArg {
     Tournament10kBy1k,
     Tournament100kBy1k,
     Tournament1mBy10k,
+    Tournament10kBy300WhenDone,
+    Tournament100kBy300WhenDone,
+    Tournament1mBy300WhenDone,
 }
 
 impl TransactionTypeArg {
@@ -401,6 +404,24 @@ impl TransactionTypeArg {
             },
             TransactionTypeArg::Tournament1mBy10k => TransactionType::Workflow{
                 workflow_kind: WorkflowKind::Tournament { num_players: 1000000, join_batch: 10000 },
+                num_modules: module_working_set_size,
+                move_stages_by_phase: true,
+                use_account_pool: sender_use_account_pool,
+            },
+            TransactionTypeArg::Tournament10kBy300WhenDone => TransactionType::Workflow{
+                workflow_kind: WorkflowKind::Tournament { num_players: 10000, join_batch: 300 },
+                num_modules: module_working_set_size,
+                move_stages_by_phase: false,
+                use_account_pool: sender_use_account_pool,
+            },
+            TransactionTypeArg::Tournament100kBy300WhenDone => TransactionType::Workflow{
+                workflow_kind: WorkflowKind::Tournament { num_players: 100000, join_batch: 300 },
+                num_modules: module_working_set_size,
+                move_stages_by_phase: false,
+                use_account_pool: sender_use_account_pool,
+            },
+            TransactionTypeArg::Tournament1mBy300WhenDone => TransactionType::Workflow{
+                workflow_kind: WorkflowKind::Tournament { num_players: 1000000, join_batch: 300 },
                 num_modules: module_working_set_size,
                 move_stages_by_phase: false,
                 use_account_pool: sender_use_account_pool,

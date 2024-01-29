@@ -6,7 +6,7 @@ use crate::{
     call_custom_modules::CustomModulesDelegationGeneratorCreator,
     entry_points::EntryPointTransactionGenerator, EntryPoints, ObjectPool,
     ReliableTransactionSubmitter, TransactionGenerator, TransactionGeneratorCreator, WorkflowKind,
-    WorkflowProgress,
+    WorkflowProgress, ReducedBatchWrapperTransactionGeneratorCreator,
     tournament_generator::{TournamentStartNewRoundTransactionGenerator, TournamentMovePlayersToRoundTransactionGenerator},
 };
 use aptos_logger::{info, sample, sample::SampleRate};
@@ -338,12 +338,11 @@ impl WorkflowTxnGeneratorCreator {
                             None,
                             Some(created_pool.clone()),
                             num_players,
-                            // 2 APT
-                            400_000_000,
+                            // 0.04 APT
+                            4_000_000,
                         ))
                     );
                 }
-
                 creators.push(
                     Box::new(
                         AccountsPoolWrapperCreator::new(
@@ -365,11 +364,17 @@ impl WorkflowTxnGeneratorCreator {
                     )),
                 );
                 creators.push(
-                    Box::new(CustomModulesDelegationGeneratorCreator::new_raw(
-                        txn_factory.clone(),
-                        packages.clone(),
-                        tournament_move_players_to_round_worker,
-                    )),
+                    Box::new(
+                        // expensive batched transactions, reduce batch size
+                        ReducedBatchWrapperTransactionGeneratorCreator::new(
+                            1,
+                            Box::new(CustomModulesDelegationGeneratorCreator::new_raw(
+                                txn_factory.clone().with_max_gas_amount(1000000),
+                                packages.clone(),
+                                tournament_move_players_to_round_worker,
+                            )),
+                        ),
+                    )
                 );
                 creators.push(
                     Box::new(
