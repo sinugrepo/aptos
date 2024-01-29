@@ -24,16 +24,17 @@ module tournament::token_manager {
         collection_addr: address,
     }
 
+    #[event]
     struct BurnPlayerTokenEvent has drop, store {
+        round_number: u64,
         object_address: address,
     }
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct TournamentPlayerToken has key {
+    struct TournamentPlayerToken has key, drop {
         tournament_address: address,
         player_name: String,
         token_uri: String,
-        burned: event::EventHandle<BurnPlayerTokenEvent>,
     }
 
     /// Creates a single collection for the entire contract
@@ -77,7 +78,6 @@ module tournament::token_manager {
             tournament_address,
             player_name,
             token_uri: token_uris::get_random_token_uri(),
-            burned: object::new_event_handle(&object_signer)
         };
         // move tournament_token to the token
         move_to(&object_signer, tournament_token);
@@ -88,22 +88,18 @@ module tournament::token_manager {
     public fun mark_token_loss(
         owner: &signer,
         token_address: address,
+        current_round: u64,
     ) acquires TournamentPlayerToken {
         assert_is_admin(owner, token_address);
-        mark_token_loss_internal(token_address);
+        mark_token_loss_internal(token_address, current_round);
     }
 
-    public(friend) fun mark_token_loss_internal(token_address: address) acquires TournamentPlayerToken {
-        let TournamentPlayerToken {
-            tournament_address: _,
-            player_name: _,
-            token_uri: _,
-            burned,
-        } = move_from<TournamentPlayerToken>(token_address);
-        event::emit_event(&mut burned, BurnPlayerTokenEvent {
+    public(friend) fun mark_token_loss_internal(token_address: address, current_round: u64) acquires TournamentPlayerToken {
+        move_from<TournamentPlayerToken>(token_address);
+        event::emit(BurnPlayerTokenEvent {
             object_address: token_address,
+            round_number: current_round,
         });
-        event::destroy_handle(burned);
         object_refs::destroy_object(token_address);
     }
 

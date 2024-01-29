@@ -73,6 +73,11 @@ module tournament::roulette_unit_tests {
         let (game_signers, _) = aptos_tournament::end_matchmaking_returning(admin, tournament_address);
         let game_signers = std::option::extract(&mut game_signers);
 
+        let tournament_signer = admin::get_tournament_owner_signer(tournament_address);
+        vector::enumerate_ref(&game_signers, |i, signer| {
+            assert!(test_utils::object_signer_to_owner(signer) == signer::address_of(&tournament_signer), 2000 + i);
+        });
+
         let game_addresses = tournament::misc_utils::signers_to_addresses(&game_signers);
         assert!(vector::length(&game_addresses) == 1, 1003);
 
@@ -127,6 +132,8 @@ module tournament::roulette_unit_tests {
             index_opt = roulette::commit_index_returning(player, tournament_address, game_address, index);
             i = i + 1;
         });
+
+        roulette::handle_games_end_returning(admin, tournament_address, vector[game_address]);
 
         (addresses, game_address, index_opt)
     }

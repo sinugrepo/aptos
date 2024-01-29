@@ -127,7 +127,7 @@ module tournament::round {
         assert_player_can_join<GameType>(round_address);
 
         let matchmaker_address = get_matchmaker_address<GameType>(round_address);
-        matchmaker::add_players<GameType>(owner, matchmaker_address, players)
+        matchmaker::add_players<GameType>(owner, matchmaker_address, players, round_address)
     }
 
     public entry fun end_matchmaking<GameType>(
@@ -146,7 +146,7 @@ module tournament::round {
 
         let round = borrow_global_mut<Round<GameType>>(round_address);
         round.matchmaking_ended = true;
-        matchmaker::finish_matchmaking<GameType>(owner, round.matchmaker_address)
+        matchmaker::finish_matchmaking<GameType>(owner, round.matchmaker_address, round_address)
     }
 
     public entry fun start_play<GameType>(
@@ -176,7 +176,7 @@ module tournament::round {
         owner: &signer,
         round_address: address,
     ) acquires Round {
-        if (exists<Round<GameType>>(round_address)) {
+        if (is_round<GameType>(round_address)) {
             assert_round_owner<GameType>(owner, round_address);
 
             let Round<GameType> {
@@ -209,5 +209,9 @@ module tournament::round {
     public fun assert_round_owner<GameType>(owner: &signer, round_address: address) {
         let round = object::address_to_object<Round<GameType>>(round_address);
         assert!(object::owns(round, signer::address_of(owner)), ENOT_ROUND_OWNER);
+    }
+
+    public fun is_round<GameType>(round_address: address): bool {
+        exists<Round<GameType>>(round_address)
     }
 }

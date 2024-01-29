@@ -7,6 +7,7 @@ module tournament::test_utils {
     use aptos_framework::aptos_coin::AptosCoin;
     use aptos_framework::coin::MintCapability;
     use aptos_framework::features;
+    use aptos_framework::object::{Self, ObjectCore};
 
 
     public fun fund_account(
@@ -33,7 +34,11 @@ module tournament::test_utils {
         let concurrent_assets = features::get_concurrent_assets_feature();
         let module_events = features::get_module_event_feature();
         let blake = features::get_blake2b_256_feature();
-        features::change_feature_flags(aptos_framework, vector[auids, concurrent_assets, module_events, blake], vector[]);
+        features::change_feature_flags(
+            aptos_framework,
+            vector[auids, concurrent_assets, module_events, blake],
+            vector[]
+        );
     }
 
     public fun fast_forward_seconds(seconds: u64) {
@@ -45,17 +50,19 @@ module tournament::test_utils {
     }
 
     // also destroys burn
-    public fun get_mint_capabilities(
-        aptos_framework: &signer,
-    ): MintCapability<AptosCoin> {
+    public fun get_mint_capabilities(aptos_framework: &signer): MintCapability<AptosCoin> {
         let (burn, mint) = aptos_framework::aptos_coin::initialize_for_test(aptos_framework);
         coin::destroy_burn_cap(burn);
         mint
     }
 
-    public fun destroy_mint_capabilities(
-        mint: MintCapability<AptosCoin>,
-    ) {
+    public fun destroy_mint_capabilities(mint: MintCapability<AptosCoin>) {
         coin::destroy_mint_cap(mint);
+    }
+
+    public fun object_signer_to_owner(object_signer: &signer): address {
+        let object_address = signer::address_of(object_signer);
+        let object = object::address_to_object<ObjectCore>(object_address);
+        object::owner(object)
     }
 }

@@ -7,8 +7,9 @@ module tournament::trivia {
 
     use tournament::admin;
     use tournament::round;
-    use tournament::token_manager::{Self, TournamentPlayerToken};
+    use tournament::token_manager::{Self, TournamentPlayerToken, get_tournament_address};
     use tournament::tournament_manager;
+    use tournament::tournament_manager::{get_round_address, get_current_round_number};
 
     friend tournament::aptos_tournament;
 
@@ -48,6 +49,7 @@ module tournament::trivia {
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TriviaAnswer has key, drop, store, copy {
+        round_address: address,
         answer_index: u8,
     }
 
@@ -77,7 +79,7 @@ module tournament::trivia {
         vector::for_each_ref(&players, |player| {
             let token_address = object::object_address(player);
             let token_signer = token_manager::get_token_signer(&tournament_signer, token_address);
-            move_to<TriviaAnswer>(&token_signer, TriviaAnswer { answer_index: 255 })
+            move_to<TriviaAnswer>(&token_signer, TriviaAnswer { round_address, answer_index: 255 })
         });
 
         vector::empty()
@@ -128,9 +130,21 @@ module tournament::trivia {
         assert!(object::is_owner(player_obj, user_addr), E_NOT_OWNER);
 
         // assert!(exists<TriviaPlayer>(player_obj_addr), error::invalid_argument(ENOT_A_TRIVIA_PLAYER))
+        let tournament_player_token = get_tournament_address(player_obj_addr);
         let answer = borrow_global_mut<TriviaAnswer>(player_obj_addr);
         // TODO; FIX THIS!
+        answer.round_address = get_round_address(tournament_player_token);
         answer.answer_index = submitted_answer_index;
+    }
+    public entry fun handle_players_game_end_by_address(
+        admin: &signer,
+        tournament_address: address,
+        players: vector<address>,
+    ) acquires TriviaAnswer, TriviaQuestion {
+        let players = vector::map(players, |player_addr| {
+            object::address_to_object<TournamentPlayerToken>(player_addr)
+        });
+        handle_players_game_end(admin, tournament_address, players);
     }
 
     public entry fun handle_players_game_end(
@@ -165,7 +179,8 @@ module tournament::trivia {
         };
 
         if (!player_is_correct) {
-            token_manager::mark_token_loss(tournament_signer, token_address);
+            let tournament_addr = get_tournament_address(token_address);
+            token_manager::mark_token_loss(tournament_signer, token_address, get_current_round_number(tournament_addr));
         };
     }
 
@@ -192,14 +207,16 @@ module tournament::trivia {
     }
 
     public fun destroy_and_cleanup_round(admin_signer: &signer, round_address: address) acquires TriviaQuestion {
-        let admin = admin::get_admin_signer_as_admin(admin_signer);
-        if (exists<TriviaQuestion>(round_address)) {
-            move_from<TriviaQuestion>(round_address);
-        };
-        round::destroy_and_cleanup_round<TriviaGame>(&admin, round_address);
+        if (round::is_round<TriviaGame>(round_address)) {
+            let admin = admin::get_admin_signer_as_admin(admin_signer);
+            if (exists<TriviaQuestion>(round_address)) {
+                move_from<TriviaQuestion>(round_address);
+            };
+            round::destroy_and_cleanup_round<TriviaGame>(&admin, round_address);
+        }
     }
 
-    public fun destroy_and_cleanup_current_round(
+    public entry fun destroy_and_cleanup_current_round(
         admin_signer: &signer,
         tournament_address: address
     ) acquires TriviaQuestion {
@@ -263,6 +280,7 @@ module tournament::trivia {
             *borrow_global<TriviaAnswer>(trivia_player_token_addr)
         } else {
             TriviaAnswer {
+                round_address: @0x0,
                 answer_index: 255
             }
         }

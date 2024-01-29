@@ -196,7 +196,7 @@ module tournament::tournament_manager {
         tournament_address: address,
         min_players_per_room: u64,
         max_players_per_room: u64,
-    ) acquires TournamentState, CurrentRound {
+    ): address acquires TournamentState, CurrentRound {
         assert_is_admin(signer::address_of(caller), tournament_address);
         assert_tournament_not_ended(tournament_address);
 
@@ -223,6 +223,7 @@ module tournament::tournament_manager {
 
         // Only allow joining at the start!
         state.is_joinable = false;
+        round_address
     }
 
     public entry fun set_tournament_joinable(
@@ -265,6 +266,7 @@ module tournament::tournament_manager {
                 admin_signer,
                 current_round.round_address
             );
+            current_round.round_address = @0x0;
         };
     }
 
@@ -280,6 +282,13 @@ module tournament::tournament_manager {
         assert!(exists<CurrentRound>(tournament_address), EROUND_DOES_NOT_EXIST);
         let current_round = borrow_global<CurrentRound>(tournament_address);
         current_round.game_module
+    }
+
+    #[view]
+    public fun get_current_round_number(tournament_address: address): u64 acquires CurrentRound {
+        assert!(exists<CurrentRound>(tournament_address), EROUND_DOES_NOT_EXIST);
+        let current_round = borrow_global<CurrentRound>(tournament_address);
+        current_round.number
     }
 
 

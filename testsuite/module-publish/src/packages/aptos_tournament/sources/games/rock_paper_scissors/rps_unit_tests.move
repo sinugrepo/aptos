@@ -11,7 +11,7 @@ module tournament::rps_unit_tests {
 
     use tournament::admin;
     use tournament::aptos_tournament;
-    use tournament::rock_paper_scissor::{Self, RockPaperScissorsGame};
+    use tournament::rock_paper_scissors::{Self, RockPaperScissorsGame};
     use tournament::test_utils;
     use tournament::token_manager;
     use tournament::token_manager::TournamentPlayerToken;
@@ -90,7 +90,6 @@ module tournament::rps_unit_tests {
         assert!(vector::length(&game_addresses) == 0, 1001);
         test_utils::fast_forward_seconds(10);
 
-
         let game_addresses = aptos_tournament::add_players_to_game_returning(
             admin,
             tournament_address,
@@ -105,6 +104,11 @@ module tournament::rps_unit_tests {
         let game_signers = option::extract(&mut game_signers);
         let game_addresses = tournament::misc_utils::signers_to_addresses(&game_signers);
         assert!(vector::length(&game_addresses) == 1, 1003);
+
+        let tournament_signer = admin::get_tournament_owner_signer(tournament_address);
+        vector::enumerate_ref(&game_signers, |i, signer| {
+            assert!(test_utils::object_signer_to_owner(signer) == signer::address_of(&tournament_signer), 2000 + i);
+        });
 
         (tournament_address, round_address, game_addresses)
     }
@@ -137,7 +141,7 @@ module tournament::rps_unit_tests {
     fun player_commit(player: &signer, game_address: address, action: vector<u8>, hash_addition: vector<u8>) {
         let combo = copy action;
         vector::append(&mut combo, hash_addition);
-        rock_paper_scissor::commit_action(player, game_address, hash::sha3_256(combo));
+        rock_paper_scissors::commit_action(player, game_address, hash::sha3_256(combo));
     }
 
     fun full_e2e_test_play(
@@ -187,7 +191,7 @@ module tournament::rps_unit_tests {
         player_commit(player1, game_address, action1, hash_addition1);
         player_commit(player2, game_address, action2, hash_addition2);
         if (move_players == 1 || move_players == 3) {
-            let (is_game_over, _winners, _losers) = rock_paper_scissor::verify_action_returning(
+            let (is_game_over, _winners, _losers) = rock_paper_scissors::verify_action_returning(
                 player1,
                 game_address,
                 action1,
@@ -199,7 +203,7 @@ module tournament::rps_unit_tests {
         let winners = vector[];
         let losers = vector[];
         if (move_players == 2 || move_players == 3) {
-            let (_is_game_over, winnersi, losersi) = rock_paper_scissor::verify_action_returning(
+            let (_is_game_over, winnersi, losersi) = rock_paper_scissors::verify_action_returning(
                 player2,
                 game_address,
                 action2,
@@ -253,8 +257,8 @@ module tournament::rps_unit_tests {
         player_commit(user1_signer, game_address, action1, hash_addition1);
         player_commit(user2_signer, game_address, action2, hash_addition2);
 
-        rock_paper_scissor::verify_action_returning(user1_signer, game_address, action1, bad_hash_addition);
-        rock_paper_scissor::verify_action_returning(user2_signer, game_address, action2, bad_hash_addition);
+        rock_paper_scissors::verify_action_returning(user1_signer, game_address, action1, bad_hash_addition);
+        rock_paper_scissors::verify_action_returning(user2_signer, game_address, action2, bad_hash_addition);
     }
 
     #[test(
@@ -282,7 +286,7 @@ module tournament::rps_unit_tests {
             b"Paper",
             2,
         );
-        let results = rock_paper_scissor::handle_games_end_returning(admin, vector[game_address]);
+        let results = rock_paper_scissors::handle_games_end_returning(admin, vector[game_address]);
         let winners_and_losers = vector::pop_back(&mut results);
         let _losers = vector::pop_back(&mut winners_and_losers);
         let winners = vector::pop_back(&mut winners_and_losers);
@@ -316,7 +320,7 @@ module tournament::rps_unit_tests {
             b"Paper",
             1,
         );
-        let results = rock_paper_scissor::handle_games_end_returning(admin, vector[game_address]);
+        let results = rock_paper_scissors::handle_games_end_returning(admin, vector[game_address]);
         let winners_and_losers = vector::pop_back(&mut results);
         let _losers = vector::pop_back(&mut winners_and_losers);
         let winners = vector::pop_back(&mut winners_and_losers);
@@ -350,7 +354,7 @@ module tournament::rps_unit_tests {
             b"Paper",
             0,
         );
-        let results = rock_paper_scissor::handle_games_end_returning(admin, vector[game_address]);
+        let results = rock_paper_scissors::handle_games_end_returning(admin, vector[game_address]);
         let winners_and_losers = vector::pop_back(&mut results);
         let losers = vector::pop_back(&mut winners_and_losers);
         let winners = vector::pop_back(&mut winners_and_losers);
@@ -383,7 +387,7 @@ module tournament::rps_unit_tests {
             b"Paper",
             3,
         );
-        rock_paper_scissor::handle_games_end(admin, vector[game_address]);
+        rock_paper_scissors::handle_games_end(admin, vector[game_address]);
 
         let winner = assert_get_winner(winners);
         assert!(winner == signer::address_of(user2_signer), 1);
@@ -396,7 +400,7 @@ module tournament::rps_unit_tests {
         user2_signer = @0x456,
         aptos_framework = @0x1
     )]
-    fun test_rock_scissor(
+    fun test_rock_scissors(
         admin: &signer,
         deployer: &signer,
         user1_signer: &signer,
@@ -411,10 +415,10 @@ module tournament::rps_unit_tests {
             user2_signer,
             &option::none(),
             b"Rock",
-            b"Scissor",
+            b"Scissors",
             3,
         );
-        rock_paper_scissor::handle_games_end(admin, vector[game_address]);
+        rock_paper_scissors::handle_games_end(admin, vector[game_address]);
 
         let winner = assert_get_winner(winners);
         assert!(winner == signer::address_of(user1_signer), 2);
@@ -445,7 +449,7 @@ module tournament::rps_unit_tests {
             b"Rock",
             3,
         );
-        rock_paper_scissor::handle_games_end(admin, vector[game_address]);
+        rock_paper_scissors::handle_games_end(admin, vector[game_address]);
 
         assert!(vector::length(&losers) == 0, 10);
         assert!(vector::length(&winners) == 2, 11);

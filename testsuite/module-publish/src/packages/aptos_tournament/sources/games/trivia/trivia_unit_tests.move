@@ -114,14 +114,16 @@ module tournament::trivia_unit_tests {
 
         // Player 4 never joins
         p4_token = vector::pop_back(&mut player_tokens);
-        let game_addresses = aptos_tournament::add_players_to_game_returning(
+        let game_addresses = aptos_tournament::add_players_to_game_by_address_returning(
             admin,
             tournament_address,
-            player_tokens,
+            player_token_addresses,
         );
+        assert!(vector::length(&game_addresses) == 0, 101);
         vector::push_back(&mut player_tokens, p4_token);
 
         aptos_tournament::end_matchmaking(admin, tournament_address);
+
 
         let round_address = tournament_manager::get_round_address(tournament_address);
         (tournament_address, round_address, game_addresses, player_token_addresses)
@@ -162,14 +164,10 @@ module tournament::trivia_unit_tests {
         let answer: u8 = 0;
 
         let player_1_token_address = *vector::borrow(&player_token_addresses, 0);
-        let player_1_token_object = object::address_to_object<TournamentPlayerToken>(player_1_token_address);
         let player_2_token_address = *vector::borrow(&player_token_addresses, 1);
-        let player_2_token_object = object::address_to_object<TournamentPlayerToken>(player_2_token_address);
 
         let player_3_token_address = *vector::borrow(&player_token_addresses, 2);
-        let player_3_token_object = object::address_to_object<TournamentPlayerToken>(player_3_token_address);
         let player_4_token_address = *vector::borrow(&player_token_addresses, 3);
-        let player_4_token_object = object::address_to_object<TournamentPlayerToken>(player_4_token_address);
 
         trivia::set_trivia_question(
             admin,
@@ -213,10 +211,10 @@ module tournament::trivia_unit_tests {
         assert!(object::is_object(player_3_token_address), 1003);
         assert!(object::is_object(player_4_token_address), 1004);
 
-        trivia::handle_players_game_end(
+        trivia::handle_players_game_end_by_address(
             admin,
             tournament_address,
-            vector[player_1_token_object, player_2_token_object, player_3_token_object, player_4_token_object],
+            vector[player_1_token_address, player_2_token_address, player_3_token_address, player_4_token_address],
         );
 
         assert!(!object::object_exists<token_manager::TournamentPlayerToken>(player_1_token_address), 1001);
@@ -224,7 +222,9 @@ module tournament::trivia_unit_tests {
         assert!(!object::object_exists<token_manager::TournamentPlayerToken>(player_3_token_address), 1003);
         assert!(!object::object_exists<token_manager::TournamentPlayerToken>(player_4_token_address), 1004);
 
-        trivia::destroy_and_cleanup_current_round(admin, tournament_address);
+        aptos_tournament::cleanup_current_round(admin, tournament_address);
         assert!(!trivia::is_trivia(round_address), 1);
+
+        aptos_tournament::start_new_round<TriviaGame>(admin, tournament_address);
     }
 }

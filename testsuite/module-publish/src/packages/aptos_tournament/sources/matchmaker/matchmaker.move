@@ -41,7 +41,7 @@ module tournament::matchmaker {
         owner: &signer,
     ): (signer, Option<signer>) {
         // Create the unlimited room
-        let room_signer = room::create_room<GameType>(owner, false);
+        let room_signer = room::create_room<GameType>(owner, false, option::none());
 
         let matchmaker = MatchMaker<GameType> {
             min_players_per_room: 0,
@@ -162,6 +162,7 @@ module tournament::matchmaker {
         owner: &signer,
         matchmaker_address: address,
         players: vector<Object<TournamentPlayerToken>>,
+        round_address: address,
     ): Option<vector<signer>> acquires MatchMaker {
         let matchmaker = object::address_to_object<MatchMaker<GameType>>(matchmaker_address);
 
@@ -181,7 +182,7 @@ module tournament::matchmaker {
             room_signers = if (vector::length(bucket) >= matchmaker.max_players_per_room) {
                 // Time to create some new rooms!
                 option::some(
-                    create_rooms_for_players<GameType>(owner, bucket, matchmaker.max_players_per_room)
+                    create_rooms_for_players<GameType>(owner, bucket, matchmaker.max_players_per_room, round_address)
                 )
             } else {
                 option::some(vector[])
@@ -198,10 +199,11 @@ module tournament::matchmaker {
         owner: &signer,
         bucket: &mut vector<Object<TournamentPlayerToken>>,
         players_per_room: u64,
+        round_address: address,
     ): vector<signer> {
         let room_signers = vector::empty<signer>();
         while (vector::length(bucket) >= players_per_room) {
-            let room_signer = room::create_room<GameType>(owner, true);
+            let room_signer = room::create_room<GameType>(owner, true, option::some(round_address));
             let room_address = signer::address_of(&room_signer);
             vector::push_back(&mut room_signers, room_signer);
             let length = vector::length(bucket);
@@ -215,6 +217,7 @@ module tournament::matchmaker {
     public(friend) fun finish_matchmaking<GameType>(
         owner: &signer,
         matchmaker_address: address,
+        round_address: address,
     ): (Option<vector<signer>>, vector<Object<TournamentPlayerToken>>) acquires MatchMaker {
         let matchmaker = borrow_global_mut<MatchMaker<GameType>>(matchmaker_address);
         matchmaker.joining_allowed = false;
@@ -236,13 +239,13 @@ module tournament::matchmaker {
                 i = i + 1;
             };
 
-            // Create full rooms
-            let signers = create_rooms_for_players<GameType>(owner, &mut all_players, matchmaker.max_players_per_room);
-            vector::reverse_append(&mut room_signers, signers);
-
-            // See if there are any partial rooms left to create
-            let signers = create_rooms_for_players<GameType>(owner, &mut all_players, matchmaker.min_players_per_room);
-            vector::reverse_append(&mut room_signers, signers);
+            let i = matchmaker.max_players_per_room;
+            while (i >= matchmaker.min_players_per_room) {
+                // Create full rooms
+                let signers = create_rooms_for_players<GameType>(owner, &mut all_players, i, round_address);
+                vector::reverse_append(&mut room_signers, signers);
+                i = i - 1;
+            };
 
             return (option::some(room_signers), all_players)
         };

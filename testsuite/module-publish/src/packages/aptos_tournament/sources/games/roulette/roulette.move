@@ -11,8 +11,9 @@ module tournament::roulette {
     use tournament::admin;
     use tournament::room;
     use tournament::round;
-    use tournament::token_manager::{Self, TournamentPlayerToken};
+    use tournament::token_manager::{Self, TournamentPlayerToken, has_player_token};
     use tournament::tournament_manager;
+    use tournament::tournament_manager::get_current_round_number;
 
     friend tournament::aptos_tournament;
 
@@ -133,12 +134,36 @@ module tournament::roulette {
         // This is failing because the admin signer is not authorized?
         if (is_ready(room_address)) {
             let owner = admin::get_admin_signer();
-            handle_game_end_returning(&owner, tournament_address, room_address)
+            option::some(soft_game_end(&owner, tournament_address, room_address))
         } else {
             (option::none())
         }
     }
 
+    fun soft_game_end(
+        admin: &signer,
+        tournament_address: address,
+        game_address: address,
+    ): u64 acquires Roulette {
+        let tournament_signer = admin::get_tournament_owner_signer_as_admin(admin, tournament_address);
+
+        if (exists<Roulette>(game_address)) {
+            let revealed_index = view_roulette(game_address).revealed_index;
+            if (revealed_index == 255) {
+                revealed_index = random_u64();
+                reveal_answer(admin, game_address, revealed_index);
+            };
+            let game = view_roulette(game_address);
+            let current_round = get_current_round_number(tournament_address);
+            vector::for_each(game.players, |player| {
+                handle_player_game_end(&tournament_signer, player, game.revealed_index, current_round);
+            });
+            return revealed_index
+        };
+        255
+    }
+
+    // deprecated for handle_games_end
     public entry fun handle_game_end(
         admin: &signer,
         tournament_address: address,
@@ -147,50 +172,80 @@ module tournament::roulette {
         handle_game_end_returning(admin, tournament_address, game_address);
     }
 
-    // return winner index
+    // deprecated for handle_games_end_returning
     public fun handle_game_end_returning(
         admin: &signer,
         tournament_address: address,
         game_address: address,
     ): (option::Option<u64>) acquires Roulette {
-        let tournament_signer = admin::get_tournament_owner_signer_as_admin(admin, tournament_address);
-        assert!(exists<Roulette>(game_address), E_NOT_A_GAME);
-        let index_opt = option::none<u64>();
-        if (view_roulette(game_address).revealed_index == 255) {
-            let to_hash = transaction_context::get_transaction_hash();
-            vector::append(&mut to_hash, bcs::to_bytes(&timestamp::now_seconds()));
-            let hash = std::hash::sha3_256(to_hash);
+        let idxs = handle_games_end_returning(admin, tournament_address, vector[game_address]);
+        option::some(vector::pop_back(&mut idxs))
+    }
 
-            let bytes: vector<u8> = vector[];
-            let i = 0;
-            while (i < 8) {
-                vector::push_back(&mut bytes, vector::pop_back(&mut hash));
-                i = i + 1;
-            };
+    public entry fun handle_games_end(
+        admin: &signer,
+        tournament_address: address,
+        game_addresses: vector<address>,
+    ) acquires Roulette {
+        handle_games_end_returning(admin, tournament_address, game_addresses);
+    }
 
-            let index = from_bcs::to_u64(bytes) % 4;
+    public fun random_u64(): u64 {
+        let to_hash = transaction_context::get_transaction_hash();
+        vector::append(&mut to_hash, bcs::to_bytes(&timestamp::now_seconds()));
+        let hash = std::hash::sha3_256(to_hash);
 
-            reveal_answer(admin, game_address, index);
-            index_opt = option::some(index);
+        let bytes: vector<u8> = vector[];
+        let i = 0;
+        while (i < 8) {
+            vector::push_back(&mut bytes, vector::pop_back(&mut hash));
+            i = i + 1;
         };
-        let game = view_roulette(game_address);
-        vector::for_each(game.players, |player| {
-            handle_player_game_end(&tournament_signer, player, game.revealed_index);
+        from_bcs::to_u64(bytes) % 4
+    }
+
+    // return winner index
+    public fun handle_games_end_returning(
+        admin: &signer,
+        tournament_address: address,
+        game_addresses: vector<address>,
+    ): vector<u64> acquires Roulette {
+        let idxs = vector[];
+        let admin = admin::get_admin_signer_as_admin(admin);
+
+        vector::for_each(game_addresses, |game_address| {
+            if (exists<Roulette>(game_address)) {
+                let revealed_index = soft_game_end(&admin, tournament_address, game_address);
+                vector::push_back(&mut idxs, revealed_index);
+
+                move_from<Roulette>(game_address);
+                room::close_room<RouletteGame>(&admin, game_address);
+            }
         });
-        index_opt
+        idxs
     }
 
     inline fun handle_player_game_end(
         tournament_signer: &signer,
         player: Player,
         revealed_index: u64,
+        current_round: u64
     ) {
-        let player_hit = player.index == revealed_index;
+        if (has_player_token(player.token_address)) {
+            let player_hit = player.index == revealed_index;
 
-        // Player dies if they have not picked an index
-        if (player_hit || player.index == 255) {
-            token_manager::mark_token_loss(tournament_signer, player.token_address);
-        };
+            // Player dies if they have not picked an index
+            if (player_hit || player.index == 255) {
+                let player_token_addr = player.token_address;
+                if (token_manager::has_player_token(player_token_addr)) {
+                    token_manager::mark_token_loss(
+                        tournament_signer,
+                        player_token_addr,
+                        current_round,
+                    );
+                }
+            };
+        }
     }
 
     public entry fun reveal_answer(

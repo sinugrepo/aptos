@@ -6,7 +6,7 @@ module tournament::admin {
 
     use tournament::tournament_manager;
 
-    friend tournament::rock_paper_scissor;
+    friend tournament::rock_paper_scissors;
     friend tournament::trivia;
     friend tournament::roulette;
     friend tournament::aptos_tournament;

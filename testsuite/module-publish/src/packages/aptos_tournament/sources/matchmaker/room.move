@@ -18,16 +18,24 @@ module tournament::room {
     /// This is not a limited room
     const ENOT_LIMITED_ROOM: u64 = 2;
 
+    #[event]
+    struct CreateRoomEvent has drop, store {
+        object_address: address,
+        tournament_address: address,
+        current_round_address: address,
+    }
+
+    #[event]
     struct BurnRoomEvent has drop, store {
         object_address: address,
+        players: Option<vector<Object<TournamentPlayerToken>>>,
     }
 
     // This is stored at a random address: this is the instance of an individual game room
     // Like a table of poker players, two players doing 1v1 RPS, or everyone doing trivia, etc
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct Room<phantom GameType> has key {
+    struct Room<phantom GameType> has key, drop {
         players: Option<vector<Object<TournamentPlayerToken>>>,
-        burned: event::EventHandle<BurnRoomEvent>
     }
 
     public fun get_players<GameType>(
@@ -81,20 +89,27 @@ module tournament::room {
     public(friend) fun create_room<GameType>(
         owner: &signer,
         is_limited_room: bool,
+        round_address: Option<address>,
     ): signer {
         let tournament_addr = signer::address_of(owner);
         let constructor_ref = object::create_object(tournament_addr);
-        let (room_obj_signer, _room_obj_addr) = object_refs::create_refs<Room<GameType>>(&constructor_ref);
+        let (room_obj_signer, room_obj_addr) = object_refs::create_refs<Room<GameType>>(&constructor_ref);
 
         let players = if (is_limited_room) {
             option::some<vector<Object<TournamentPlayerToken>>>(vector::empty<Object<TournamentPlayerToken>>())
         } else {
             option::none<vector<Object<TournamentPlayerToken>>>()
         };
+        if (option::is_some(&round_address)) {
+            event::emit(CreateRoomEvent {
+                object_address: room_obj_addr,
+                tournament_address: tournament_addr,
+                current_round_address: *option::borrow(&round_address),
+            });
+        };
         move_to(&room_obj_signer, Room<GameType> {
-            players,
-            burned: object::new_event_handle(&room_obj_signer)
-        }
+                players,
+            }
         );
         room_obj_signer
     }
@@ -110,14 +125,11 @@ module tournament::room {
     ) acquires Room {
         let room = object::address_to_object<Room<GameType>>(room_address);
         assert!(object::owns(room, signer::address_of(owner)), ENOT_ROOM_OWNER);
-        let Room {
-            players: _,
-            burned,
-        } = move_from<Room<GameType>>(room_address);
-        event::emit_event(&mut burned, BurnRoomEvent {
+        let Room { players, } = move_from<Room<GameType>>(room_address);
+        event::emit(BurnRoomEvent {
             object_address: room_address,
+            players,
         });
-        event::destroy_handle(burned);
         object_refs::destroy_object(room_address);
     }
 }

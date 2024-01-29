@@ -6,8 +6,8 @@ use crate::{
     call_custom_modules::CustomModulesDelegationGeneratorCreator,
     entry_points::EntryPointTransactionGenerator, EntryPoints, ObjectPool,
     ReliableTransactionSubmitter, TransactionGenerator, TransactionGeneratorCreator, WorkflowKind,
-    WorkflowProgress, ReducedBatchWrapperTransactionGeneratorCreator,
-    tournament_generator::{TournamentStartNewRoundTransactionGenerator, TournamentMovePlayersToRoundTransactionGenerator},
+    WorkflowProgress,
+    tournament_generator::{TournamentStartNewRoundTransactionGenerator, TournamentMovePlayersToRoundTransactionGenerator}, reduced_batch_wrapper::ReducedBatchWrapperTransactionGeneratorCreator,
 };
 use aptos_logger::{info, sample, sample::SampleRate};
 use aptos_sdk::{
