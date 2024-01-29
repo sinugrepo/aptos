@@ -14,7 +14,11 @@ module 0x8675309::M {
     }
     private fun foo() {
         loop {
-          break
+          if true {
+            break
+          } else {
+            break
+          }
         };
         break
     }

@@ -16,7 +16,11 @@ module 0x8675309::M {
         Tuple()
     }
     private fun t3() {
-        Tuple(0, false, pack M::S(false));
+        if true {
+          Tuple(0, false, pack M::S(false))
+        } else {
+          Tuple(0, false, pack M::S(false))
+        };
         Tuple()
     }
     spec fun $t0();

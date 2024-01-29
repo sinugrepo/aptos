@@ -1477,8 +1477,12 @@ impl Pattern {
         }
     }
 
-    /// Walks `self` and `exp` in parallel to pair any `Pattern` variables with subexpressions.  Variables
-    /// which cannot be matched to a single subexpression map to `None` in the result.
+    /// Walks `self` and `exp` in parallel to pair any `Pattern` variables with subexpressions.
+    /// If pattern and expression are the same shape (e.g., `Pattern::Struct` on LHS matched with
+    /// `Operation::Pack` call on RHS with same `StructId`; `Pattern::Tuple` on LHS matched with
+    /// `Value::Tuple` or `Operation::Tuple` call with same arity and types on RHS), then each
+    /// `Symbol` in the result will be paired wtih `Some(exp)`.  If shapes differ, then symbols
+    /// in `Pattern::Var` subpatterns will be paired with `None` in the result vector.
     pub fn vars_and_exprs(&self, exp: &Exp) -> Vec<(Symbol, Option<Exp>)> {
         let mut result = vec![];
         let _shape_matched = Self::collect_vars_exprs_from_expr(&mut result, self, Some(exp));

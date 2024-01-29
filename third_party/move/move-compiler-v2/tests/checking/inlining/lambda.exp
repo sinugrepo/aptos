@@ -55,7 +55,11 @@ module 0x42::LambdaTest2 {
 module 0x42::LambdaTest {
     use 0x42::LambdaTest2; // resolved as: 0x42::LambdaTest2
     private fun test_lambda() {
-        Abort(0);
+        if false {
+          Tuple()
+        } else {
+          Abort(0)
+        };
         Tuple()
     }
     spec fun $inline_apply(f: |u64|u64,b: u64): u64 {

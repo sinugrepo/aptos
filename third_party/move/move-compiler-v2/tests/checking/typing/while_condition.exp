@@ -2,18 +2,34 @@
 module 0x8675309::M {
     private fun t0() {
         loop {
-          Tuple()
+          if true {
+            Tuple()
+          } else {
+            break
+          }
         };
         loop {
-          break
+          if false {
+            Tuple()
+          } else {
+            break
+          }
         }
     }
     private fun t1() {
         loop {
-          Tuple()
+          if true {
+            Tuple()
+          } else {
+            break
+          }
         };
         loop {
-          break
+          if false {
+            Tuple()
+          } else {
+            break
+          }
         }
     }
     spec fun $t0();

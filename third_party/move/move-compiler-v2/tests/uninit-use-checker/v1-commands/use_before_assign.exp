@@ -6,17 +6,10 @@ warning: Unused local variable `y`. Consider removing or prefixing with an under
 4 │     let y = x;
   │         ^
 
-============ initial bytecode ================
 
-[variant baseline]
-fun <SELF>_0::main() {
-  0: return ()
-}
-
-============ after uninitialized_use_checker: ================
-
-[variant baseline]
-fun <SELF>_0::main() {
-     # before: all initialized, after: all initialized
-  0: return ()
-}
+Diagnostics:
+error: use of unassigned local `x`
+  ┌─ tests/uninit-use-checker/v1-commands/use_before_assign.move:4:13
+  │
+4 │     let y = x;
+  │             ^

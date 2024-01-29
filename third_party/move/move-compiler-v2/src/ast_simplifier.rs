@@ -23,6 +23,7 @@ use std::{
 };
 
 static SIMPLIFIER_DEBUG: bool = false;
+static DISABLE_IF_SIMPLIFICATION: bool = true;
 
 pub fn run_simplifier(env: &mut GlobalEnv, eliminate_code: bool) {
     let mut rewriter = SimplifierRewriter::new(env, eliminate_code);
@@ -318,6 +319,7 @@ enum SimpleValue {
     Temporary(TempIndex),
     LocalVar(Symbol),
     NonConstant,
+    Uninitialized,
 }
 
 impl<'env> SimplifierRewriter<'env> {
@@ -380,6 +382,18 @@ impl<'env> SimplifierRewriter<'env> {
                 Temporary(idx) => Some(ExpData::Temporary(id, *idx).into_exp()),
                 LocalVar(sym) => Some(ExpData::LocalVar(id, *sym).into_exp()),
                 NonConstant => Some(ExpData::LocalVar(id, *remapped_sym).into_exp()),
+                Uninitialized => {
+                    let loc = self.env.get_node_loc(id);
+                    self.env.diag(
+                        Severity::Error,
+                        &loc,
+                        &format!(
+                            "use of unassigned local `{}`",
+                            sym.display(self.env.symbol_pool())
+                        ),
+                    );
+                    None
+                },
             }
         } else {
             if remapped_sym != &sym {
@@ -552,10 +566,14 @@ impl<'env> ExpRewriterFunctions for SimplifierRewriter<'env> {
     }
 
     fn rewrite_if_else(&mut self, _id: NodeId, cond: &Exp, then: &Exp, else_: &Exp) -> Option<Exp> {
-        match cond.as_ref() {
-            ExpData::Value(_, Value::Bool(true)) => Some(then.clone()),
-            ExpData::Value(_, Value::Bool(false)) => Some(else_.clone()),
-            _ => None,
+        if DISABLE_IF_SIMPLIFICATION {
+            None
+        } else {
+            match cond.as_ref() {
+                ExpData::Value(_, Value::Bool(true)) => Some(then.clone()),
+                ExpData::Value(_, Value::Bool(false)) => Some(else_.clone()),
+                _ => None,
+            }
         }
     }
 
@@ -638,10 +656,14 @@ impl<'env> ExpRewriterFunctions for SimplifierRewriter<'env> {
                 }
             }
         } else {
-            // Body with no bindings, values have no known value.
-            // Treat them all as NonConstant.
+            // Body with no bindings, values are Uninitialized.
             for (_, old_var) in pat.vars() {
-                new_binding.push((old_var, SimpleValue::NonConstant));
+                if self.unsafe_variables.contains(&(old_var, Some(id))) {
+                    // Mark this variable as unsafe.
+                    new_binding.push((old_var, SimpleValue::NonConstant));
+                } else {
+                    new_binding.push((old_var, SimpleValue::Uninitialized));
+                }
             }
         }
         // Bound vars block any prior values

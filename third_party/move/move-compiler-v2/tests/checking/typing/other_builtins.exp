@@ -6,8 +6,16 @@ module 0x8675309::M {
     private fun foo(x: &mut u64) {
         Freeze<u64>(x);
         Freeze<vector<bool>>(Borrow(Mutable)(M::any<vector<bool>>()));
-        Abort(Deref(x));
-        Tuple();
+        if false {
+          Tuple()
+        } else {
+          Abort(Deref(x))
+        };
+        if true {
+          Tuple()
+        } else {
+          Abort(0)
+        };
         Tuple()
     }
     spec fun $any<T>(): #0 {

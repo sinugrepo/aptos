@@ -41,7 +41,11 @@ module 0x2::M {
           };
           {
             let () = loop {
-              Tuple()
+              if false {
+                break
+              } else {
+                Tuple()
+              }
             };
             Tuple()
           }

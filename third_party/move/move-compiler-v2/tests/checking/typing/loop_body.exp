@@ -23,7 +23,11 @@ module 0x8675309::M {
     }
     private fun t4() {
         loop {
-          Tuple()
+          if true {
+            Tuple()
+          } else {
+            Tuple()
+          }
         }
     }
     private fun t5() {

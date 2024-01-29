@@ -2,7 +2,11 @@
 module 0x8675309::M {
     private fun foo() {
         loop {
-          continue
+          if true {
+            continue
+          } else {
+            break
+          }
         };
         continue
     }
