@@ -61,6 +61,7 @@ pub enum FeatureFlag {
     REFUNDABLE_BYTES = 51,
     OBJECT_CODE_DEPLOYMENT = 52,
     MAX_OBJECT_NESTING_CHECK = 53,
+    TRANSACTION_CONTEXT_EXTENSION = 54,
 }
 
 /// Representation of features on chain as a bitset.

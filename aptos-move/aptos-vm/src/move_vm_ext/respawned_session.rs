@@ -3,7 +3,7 @@
 
 use crate::{
     data_cache::StorageAdapter,
-    move_vm_ext::{AptosMoveResolver, SessionExt, SessionId},
+    move_vm_ext::{AptosMoveResolver, SessionExt, SessionId, UserTransactionContext},
     AptosVM,
 };
 use aptos_aggregator::{
@@ -77,6 +77,7 @@ impl<'r, 'l> RespawnedSession<'r, 'l> {
         base: &'r impl AptosMoveResolver,
         previous_session_change_set: VMChangeSet,
         storage_refund: Fee,
+        user_transaction_context_opt: Option<UserTransactionContext>,
     ) -> Result<Self, VMStatus> {
         let executor_view = ExecutorViewWithChangeSet::new(
             base.as_executor_view(),
@@ -87,7 +88,9 @@ impl<'r, 'l> RespawnedSession<'r, 'l> {
         Ok(RespawnedSessionBuilder {
             executor_view,
             resolver_builder: |executor_view| vm.as_move_resolver(executor_view),
-            session_builder: |resolver| Some(vm.new_session(resolver, session_id)),
+            session_builder: |resolver| {
+                Some(vm.new_session(resolver, session_id, user_transaction_context_opt))
+            },
             storage_refund,
         }
         .build())

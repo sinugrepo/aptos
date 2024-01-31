@@ -104,6 +104,7 @@ pub enum FeatureFlag {
     RefundableBytes,
     ObjectCodeDeployment,
     MaxObjectNestingCheck,
+    TransactionContextExtension,
 }
 
 fn generate_features_blob(writer: &CodeWriter, data: &[u64]) {
@@ -266,6 +267,7 @@ impl From<FeatureFlag> for AptosFeatureFlag {
             FeatureFlag::RefundableBytes => AptosFeatureFlag::REFUNDABLE_BYTES,
             FeatureFlag::ObjectCodeDeployment => AptosFeatureFlag::OBJECT_CODE_DEPLOYMENT,
             FeatureFlag::MaxObjectNestingCheck => AptosFeatureFlag::MAX_OBJECT_NESTING_CHECK,
+            FeatureFlag::TransactionContextExtension => AptosFeatureFlag::TRANSACTION_CONTEXT_EXTENSION,
         }
     }
 }
@@ -351,6 +353,7 @@ impl From<AptosFeatureFlag> for FeatureFlag {
             AptosFeatureFlag::REFUNDABLE_BYTES => FeatureFlag::RefundableBytes,
             AptosFeatureFlag::OBJECT_CODE_DEPLOYMENT => FeatureFlag::ObjectCodeDeployment,
             AptosFeatureFlag::MAX_OBJECT_NESTING_CHECK => FeatureFlag::MaxObjectNestingCheck,
+            AptosFeatureFlag::TRANSACTION_CONTEXT_EXTENSION => FeatureFlag::TransactionContextExtension,
         }
     }
 }
