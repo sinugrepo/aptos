@@ -226,6 +226,7 @@ pub enum EntryPoints {
     TournamentSetup,
     TournamentSetupPlayer,
     TournamentGamePlay,
+    TournamentGameReveal,
 }
 
 impl EntryPoints {
@@ -274,7 +275,8 @@ impl EntryPoints {
             | EntryPoints::SmartTablePicture { .. } => "complex",
             EntryPoints::TournamentSetup
             | EntryPoints::TournamentSetupPlayer
-            | EntryPoints::TournamentGamePlay => "aptos_tournament",
+            | EntryPoints::TournamentGamePlay
+            | EntryPoints::TournamentGameReveal => "aptos_tournament",
         }
     }
 
@@ -325,7 +327,8 @@ impl EntryPoints {
             },
             EntryPoints::TournamentSetup
             | EntryPoints::TournamentSetupPlayer
-            | EntryPoints::TournamentGamePlay => "rps_utils",
+            | EntryPoints::TournamentGamePlay
+            | EntryPoints::TournamentGameReveal => "rps_utils",
         }
     }
 
@@ -590,25 +593,43 @@ impl EntryPoints {
                 ])
             },
             EntryPoints::TournamentSetup => {
-                get_payload_void(module_id,ident_str!("setup_tournament").to_owned())
-            }
+                let rng: &mut StdRng = rng.expect("Must provide RNG");
+                get_payload(module_id,ident_str!("setup_tournament").to_owned(), vec![
+                    bcs::to_bytes(&rand_string(rng, 30)).unwrap(), // tournament name
+                ])
+            },
             EntryPoints::TournamentSetupPlayer => {
                 get_payload(
                     module_id,
                     ident_str!("setup_player").to_owned(),
                     vec![bcs::to_bytes(other.expect("Must provide other")).unwrap()],
                 )
-            }
+            },
             EntryPoints::TournamentGamePlay => {
+                let rng: &mut StdRng = rng.expect("Must provide RNG");
+                let options = vec!["Rock", "Paper", "Scissors"];
                 get_payload(
                     module_id,
                     ident_str!("game_play").to_owned(),
                     vec![
                         bcs::to_bytes(other.expect("Must provide other")).unwrap(),
-                        bcs::to_bytes(&false).unwrap()
+                        bcs::to_bytes(&false).unwrap(),  // allow_unmatched
+                        bcs::to_bytes(&options.choose(rng).unwrap()).unwrap(), // action
                     ],
                 )
-            }
+            },
+            EntryPoints::TournamentGameReveal => {
+                let rng: &mut StdRng = rng.expect("Must provide RNG");
+                let options = vec!["Rock", "Paper", "Scissors"];
+                get_payload(
+                    module_id,
+                    ident_str!("game_reveal").to_owned(),
+                    vec![
+                        bcs::to_bytes(other.expect("Must provide other")).unwrap(),
+                        bcs::to_bytes(&false).unwrap(),  // allow_unmatched
+                    ],
+                )
+            },
         }
     }
 

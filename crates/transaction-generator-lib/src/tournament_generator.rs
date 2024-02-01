@@ -42,6 +42,20 @@ pub fn move_players_to_round(
     ))
 }
 
+pub fn handle_games_end(
+    module_id: ModuleId,
+    player_accounts: Vec<AccountAddress>,
+) -> TransactionPayload {
+    TransactionPayload::EntryFunction(EntryFunction::new(
+        module_id,
+        ident_str!("handle_games_end").to_owned(),
+        vec![],
+        vec![
+            bcs::to_bytes(&player_accounts).unwrap()
+        ],
+    ))
+}
+
 pub struct TournamentStartNewRoundTransactionGenerator {
     to_setup: Arc<ObjectPool<LocalAccount>>,
     done: Arc<ObjectPool<LocalAccount>>,
@@ -95,28 +109,37 @@ impl UserModuleTransactionGenerator for TournamentStartNewRoundTransactionGenera
     }
 }
 
-pub struct TournamentMovePlayersToRoundTransactionGenerator {
-    to_join: Arc<ObjectPool<LocalAccount>>,
-    joined: Arc<ObjectPool<LocalAccount>>,
-    batch_size: usize,
+#[derive(Clone, Debug)]
+pub enum TournamentBatchMoveType {
+    ToRound,
+    GameEnd,
 }
 
-impl TournamentMovePlayersToRoundTransactionGenerator {
+pub struct TournamentMovePlayersInBatchesTransactionGenerator {
+    from: Arc<ObjectPool<LocalAccount>>,
+    to: Arc<ObjectPool<LocalAccount>>,
+    batch_size: usize,
+    move_type: TournamentBatchMoveType,
+}
+
+impl TournamentMovePlayersInBatchesTransactionGenerator {
     pub fn new(
-        to_join: Arc<ObjectPool<LocalAccount>>,
-        joined: Arc<ObjectPool<LocalAccount>>,
+        from: Arc<ObjectPool<LocalAccount>>,
+        to: Arc<ObjectPool<LocalAccount>>,
         batch_size: usize,
+        move_type: TournamentBatchMoveType,
     ) -> Self {
         Self {
-            to_join,
-            joined,
+            from,
+            to,
             batch_size,
+            move_type,
         }
     }
 }
 
 #[async_trait]
-impl UserModuleTransactionGenerator for TournamentMovePlayersToRoundTransactionGenerator {
+impl UserModuleTransactionGenerator for TournamentMovePlayersInBatchesTransactionGenerator {
     fn initialize_package(
         &mut self,
         _package: &Package,
@@ -135,18 +158,21 @@ impl UserModuleTransactionGenerator for TournamentMovePlayersToRoundTransactionG
         _rng: &mut StdRng,
     ) -> Arc<TransactionGeneratorWorker> {
         let batch_size = self.batch_size;
-        let to_join = self.to_join.clone();
-        let joined = self.joined.clone();
+        let from = self.from.clone();
+        let to = self.to.clone();
+        let move_type = self.move_type.clone();
         Arc::new(move |account, package, publisher, txn_factory, rng| {
-            let batch = to_join.take_from_pool(batch_size, true, rng);
+            let batch = from.take_from_pool(batch_size, true, rng);
 
             if batch.is_empty() {
                 return None;
             }
             let addresses = batch.iter().map(|a| a.address()).collect();
-            // println!("Tournament Generator: submitting transaction: move_players_to_round: {:?}", addresses);
-            let builder = txn_factory.payload(move_players_to_round(package.get_module_id("rps_utils"), addresses));
-            joined.add_to_pool(batch);
+            let builder = txn_factory.payload(match move_type {
+                TournamentBatchMoveType::ToRound => move_players_to_round(package.get_module_id("rps_utils"), addresses),
+                TournamentBatchMoveType::GameEnd => handle_games_end(package.get_module_id("rps_utils"), addresses),
+            });
+            to.add_to_pool(batch);
             Some(account.sign_multi_agent_with_transaction_builder(vec![publisher], builder))
         })
     }

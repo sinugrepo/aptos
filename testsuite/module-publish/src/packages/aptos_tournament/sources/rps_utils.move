@@ -1,7 +1,8 @@
 module tournament::rps_utils {
     use std::hash;
+    use std::option::{Self, Option};
     use std::signer;
-    use std::string;
+    use std::string::{Self, String};
     use std::vector;
     use std::table::{Self, Table};
     use std::string_utils::{to_string};
@@ -25,31 +26,49 @@ module tournament::rps_utils {
         tournament_address: address,
     }
 
+    struct GameInfo has store, drop {
+        game_address: address,
+        is_player_1: bool,
+    }
+
     // Stores a map of player address to the game address.
     // Admin of the tournament stores this resource.
     struct PlayerToGameMapping has key {
-        mapping: Table<address, address>
+        mapping: Table<address, GameInfo>
     }
 
     struct PlayerConfig has key {
         // Configuration of the player for each tournament.
         player_tokens: Table<address, Object<TournamentPlayerToken>>,
+        player_actions: Table<address, vector<u8>>,
     }
 
     public entry fun setup_tournament(
-        admin: &signer
-    ) {
+        admin: &signer,
+        name: String,
+    ) acquires TournamentConfig{
         admin::set_admin_signer(admin, signer::address_of(admin));
-        let tournament_address = aptos_tournament::create_new_tournament_returning_with_config(admin, string::utf8(b"Aptos Tournament"), 10_000_000, 1);
+        let tournament_address = aptos_tournament::create_new_tournament_returning_with_config(admin, name, 10_000_000, 1);
         let admin2 = admin::get_admin_signer_as_admin(admin);
         tournament_manager::set_tournament_joinable(&admin2, tournament_address);
 
-        move_to(admin, TournamentConfig {
-            tournament_address,
-        });
-        move_to(admin, PlayerToGameMapping {
-            mapping: table::new(),
-        });
+        let admin_address = signer::address_of(admin);
+        if (exists<TournamentConfig>(admin_address)) {
+            let tournament_config = borrow_global_mut<TournamentConfig>(admin_address);
+            tournament_config.tournament_address = tournament_address;
+        } else {
+            move_to(admin, TournamentConfig {
+                tournament_address,
+            });
+        };
+        if (exists<PlayerToGameMapping>(admin_address)) {
+            // let player_to_game_mapping = borrow_global_mut<PlayerToGameMapping>(admin_address);
+            // player_to_game_mapping.mapping = table::new();
+        } else {
+            move_to(admin, PlayerToGameMapping {
+                mapping: table::new(),
+            });
+        };
     }
 
     public entry fun setup_player(
@@ -69,6 +88,7 @@ module tournament::rps_utils {
         if (!exists<PlayerConfig>(user_address)) {
             move_to(user, PlayerConfig {
                 player_tokens: table::new(),
+                player_actions: table::new(),
             })
         };
         assert!(exists<PlayerConfig>(user_address), EPLAYER_DOES_NOT_EXIST);
@@ -90,13 +110,19 @@ module tournament::rps_utils {
 
     fun update_player_to_game_mapping(
         game_addresses: &vector<address>,
-        player_to_game_mapping: &mut Table<address, address>,
+        player_to_game_mapping: &mut Table<address, GameInfo>,
     ) {
         vector::for_each_ref(game_addresses, |game_address| {
             let player1_address = rock_paper_scissors::view_player1_in_game(*game_address);
-            table::upsert(player_to_game_mapping, player1_address, *game_address);
+            table::upsert(player_to_game_mapping, player1_address, GameInfo {
+                game_address: *game_address,
+                is_player_1: true,
+            });
             let player2_address = rock_paper_scissors::view_player2_in_game(*game_address);
-            table::upsert(player_to_game_mapping, player2_address, *game_address);
+            table::upsert(player_to_game_mapping, player2_address, GameInfo {
+                game_address: *game_address,
+                is_player_1: false,
+            });
         });
     }
 
@@ -132,12 +158,7 @@ module tournament::rps_utils {
         rock_paper_scissors::commit_action(player, game_address, hash::sha3_256(combo));
     }
 
-    public entry fun game_play(
-        player: &signer,
-        admin_address: address,
-        allow_unmatched: bool,
-    ) acquires PlayerToGameMapping {
-        let player_address = signer::address_of(player);
+    fun get_game_address(player_address: address, admin_address: address, allow_unmatched: bool, only_player1: bool): Option<address> acquires PlayerToGameMapping {
         assert!(exists<PlayerToGameMapping>(admin_address), EMAPPING_DOESNT_EXIST);
         let player_to_game_mapping = borrow_global<PlayerToGameMapping>(admin_address);
 
@@ -147,11 +168,71 @@ module tournament::rps_utils {
 
         // If Player was matched
         if (table::contains(&player_to_game_mapping.mapping, player_address)) {
-            let game_address = *table::borrow(&player_to_game_mapping.mapping, player_address);
-            let action = b"Rock";
+            let game_info = table::borrow(&player_to_game_mapping.mapping, player_address);
+            if (!only_player1 || game_info.is_player_1) {
+                option::some(game_info.game_address)
+            } else {
+                option::none()
+            }
+        } else {
+            option::none()
+        }
+    }
+
+    public entry fun game_play(
+        player: &signer,
+        admin_address: address,
+        allow_unmatched: bool,
+        action: vector<u8>,
+    ) acquires PlayerToGameMapping, PlayerConfig {
+        let player_address = signer::address_of(player);
+        let game_address_opt = get_game_address(player_address, admin_address, allow_unmatched, false);
+        if (option::is_some(&game_address_opt)) {
+            let game_address = *option::borrow(&game_address_opt);
             let hash_addition = b"random uuid";
             player_commit(player, game_address, action, hash_addition);
-        };
+
+            assert!(exists<PlayerConfig>(player_address), EPLAYER_DOES_NOT_EXIST);
+            let player_config = borrow_global_mut<PlayerConfig>(player_address);
+            table::upsert(&mut player_config.player_actions, game_address, action);
+        }
+    }
+
+    public entry fun game_reveal(
+        player: &signer,
+        admin_address: address,
+        allow_unmatched: bool,
+    ) acquires PlayerToGameMapping, PlayerConfig {
+        let player_address = signer::address_of(player);
+        let game_address_opt = get_game_address(player_address, admin_address, allow_unmatched, false);
+        if (option::is_some(&game_address_opt)) {
+            let game_address = *option::borrow(&game_address_opt);
+            let hash_addition = b"random uuid";
+
+            assert!(exists<PlayerConfig>(player_address), EPLAYER_DOES_NOT_EXIST);
+            let player_config = borrow_global_mut<PlayerConfig>(player_address);
+            let action = table::remove(&mut player_config.player_actions, game_address);
+
+            let (_is_game_over, _winners, _losers) = rock_paper_scissors::verify_action_returning(
+                player,
+                game_address,
+                action,
+                hash_addition
+            );
+        }
+    }
+
+    public entry fun handle_games_end(_fee_payer: &signer, admin: &signer, player_addresses: vector<address>) acquires PlayerToGameMapping {
+        let admin_address = signer::address_of(admin);
+        let game_addresses = vector::empty();
+        vector::for_each_ref(&player_addresses, |player_address| {
+            let game_address_opt = get_game_address(*player_address, admin_address, true, true);
+            if (option::is_some(&game_address_opt)) {
+                let game_address = *option::borrow(&game_address_opt);
+                vector::push_back(&mut game_addresses, game_address);
+            }
+        });
+        rock_paper_scissors::handle_games_end(admin, game_addresses);
     }
 
     #[test(aptos_framework = @aptos_framework, admin = @0xCAFE, player1 = @0x111111111111111ABC1, player2 = @0x111111111111111ABC2, player3 = @0x111111111111111ABC3, fee_payer = @0xABC3)]
@@ -176,5 +257,11 @@ module tournament::rps_utils {
         game_play(player1, admin_address, true);
         game_play(player2, admin_address, false);
         game_play(player3, admin_address, false);
+
+        game_reveal(player1, admin_address, true);
+        game_reveal(player2, admin_address, false);
+        game_reveal(player3, admin_address, false);
+
+        handle_games_end(fee_payer, admin, vector[signer::address_of(player1), signer::address_of(player2), signer::address_of(player3)]);
     }
 }
