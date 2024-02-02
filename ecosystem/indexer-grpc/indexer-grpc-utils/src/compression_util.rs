@@ -2,7 +2,7 @@
 
 use crate::default_file_storage_format;
 use aptos_protos::{indexer::v1::TransactionsInStorage, transaction::v1::Transaction};
-use lz4::{Decoder as xxxGzDecoder, Encoder as xxxGzEncoder, EncoderBuilder as xxxGzEncoderBuilder};
+use lz4::{Decoder as Decoder, EncoderBuilder};
 use prost::Message;
 use ripemd::{Digest, Ripemd128};
 use serde::{Deserialize, Serialize};
@@ -103,7 +103,7 @@ impl CacheEntry {
             .expect("proto serialization failed.");
         match storage_format {
             StorageFormat::Lz4CompressedProto => {
-                let mut compressed = xxxGzEncoderBuilder::new()
+                let mut compressed = EncoderBuilder::new()
                     .level(4)
                     .build(Vec::new())
                     .expect("Lz4 compression failed.");
@@ -141,7 +141,7 @@ impl CacheEntry {
     pub fn into_transaction(self) -> Transaction {
         match self {
             CacheEntry::Lz4CompressionProto(bytes) => {
-                let mut decompressor = xxxGzDecoder::new(&bytes[..]).expect("Lz4 decompression failed.");
+                let mut decompressor = Decoder::new(&bytes[..]).expect("Lz4 decompression failed.");
                 let mut decompressed = Vec::new();
                 decompressor
                     .read_to_end(&mut decompressed)
@@ -210,7 +210,7 @@ impl FileEntry {
                     transactions,
                 };
                 t.encode(&mut bytes).expect("proto serialization failed.");
-                let mut compressed = xxxGzEncoderBuilder::new()
+                let mut compressed = EncoderBuilder::new()
                     .level(4)
                     .build(Vec::new())
                     .expect("Lz4 compression failed.");
@@ -268,7 +268,7 @@ impl FileEntry {
     pub fn into_transactions_in_storage(self) -> TransactionsInStorage {
         match self {
             FileEntry::Lz4CompressionProto(bytes) => {
-                let mut decompressor = xxxGzDecoder::new(&bytes[..]).expect("Lz4 decompression failed.");
+                let mut decompressor = Decoder::new(&bytes[..]).expect("Lz4 decompression failed.");
                 let mut decompressed = Vec::new();
                 decompressor
                     .read_to_end(&mut decompressed)
