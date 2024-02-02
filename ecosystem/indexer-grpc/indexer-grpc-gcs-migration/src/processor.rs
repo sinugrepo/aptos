@@ -1,3 +1,6 @@
+// Copyright © Aptos Foundation
+// SPDX-License-Identifier: Apache-2.0
+
 use aptos_indexer_grpc_utils::{
     config::IndexerGrpcFileStoreConfig,
     file_store_operator::{FileStoreOperator, GcsFileStoreOperator},
