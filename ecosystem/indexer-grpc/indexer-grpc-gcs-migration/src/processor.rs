@@ -14,7 +14,7 @@ use tracing::{error, info};
 const MAX_VERSION_IN_TESTNET: u64 = 875906185;
 const LEGACY_BUCKET_NAME: &str = "aptos-indexer-grpc-testnet";
 const NEW_BUCKET_NAME: &str = "aptos-indexer-grpc-testnet2";
-const NUM_OF_PROCESSING_THREADS: usize = 64;
+const NUM_OF_PROCESSING_THREADS: usize = 1;
 const UPDATE_INTERVAL_IN_MILLISECONDS: u64 = 10000;
 
 pub struct Processor {
