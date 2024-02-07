@@ -64,7 +64,9 @@ and implement the governance voting logic on top.
 -  [Function `get_pending_transactions`](#0x1_multisig_account_get_pending_transactions)
 -  [Function `get_next_transaction_payload`](#0x1_multisig_account_get_next_transaction_payload)
 -  [Function `can_be_executed`](#0x1_multisig_account_can_be_executed)
+-  [Function `can_execute`](#0x1_multisig_account_can_execute)
 -  [Function `can_be_rejected`](#0x1_multisig_account_can_be_rejected)
+-  [Function `can_reject`](#0x1_multisig_account_can_reject)
 -  [Function `get_next_multisig_account_address`](#0x1_multisig_account_get_next_multisig_account_address)
 -  [Function `last_resolved_sequence_number`](#0x1_multisig_account_last_resolved_sequence_number)
 -  [Function `next_sequence_number`](#0x1_multisig_account_next_sequence_number)
@@ -101,6 +103,7 @@ and implement the governance voting logic on top.
 -  [Function `create_multisig_account_seed`](#0x1_multisig_account_create_multisig_account_seed)
 -  [Function `validate_owners`](#0x1_multisig_account_validate_owners)
 -  [Function `assert_is_owner`](#0x1_multisig_account_assert_is_owner)
+-  [Function `assert_is_owner_addr`](#0x1_multisig_account_assert_is_owner_addr)
 -  [Function `num_approvals_and_rejections`](#0x1_multisig_account_num_approvals_and_rejections)
 -  [Function `assert_multisig_account_exists`](#0x1_multisig_account_assert_multisig_account_exists)
 -  [Function `update_owner_schema`](#0x1_multisig_account_update_owner_schema)
@@ -1211,6 +1214,48 @@ Return true if the transaction with given transaction id can be executed now.
 
 </details>
 
+<a id="0x1_multisig_account_can_execute"></a>
+
+## Function `can_execute`
+
+Return true if the owner can execute the transaction with given transaction id now.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="multisig_account.md#0x1_multisig_account_can_execute">can_execute</a>(owner: <b>address</b>, <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>: <b>address</b>, sequence_number: u64): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="multisig_account.md#0x1_multisig_account_can_execute">can_execute</a>(
+    owner: <b>address</b>, <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>: <b>address</b>, sequence_number: u64): bool <b>acquires</b> <a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a> {
+    <b>let</b> multisig_account_resource = <b>borrow_global</b>&lt;<a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a>&gt;(<a href="multisig_account.md#0x1_multisig_account">multisig_account</a>);
+    <a href="multisig_account.md#0x1_multisig_account_assert_is_owner_addr">assert_is_owner_addr</a>(owner, multisig_account_resource);
+    <b>assert</b>!(
+        sequence_number &gt; 0 && sequence_number &lt; multisig_account_resource.next_sequence_number,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="multisig_account.md#0x1_multisig_account_EINVALID_SEQUENCE_NUMBER">EINVALID_SEQUENCE_NUMBER</a>),
+    );
+    <b>let</b> transaction = <a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&multisig_account_resource.transactions, sequence_number);
+    <b>let</b> (num_approvals, _) = <a href="multisig_account.md#0x1_multisig_account_num_approvals_and_rejections">num_approvals_and_rejections</a>(&multisig_account_resource.owners, transaction);
+    // Transaction execution implicitly votes for approval.
+    <b>let</b> voted = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&transaction.votes, &owner);
+    <b>let</b> vote = <b>if</b> (voted) { *<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&transaction.votes, &owner) } <b>else</b> { <b>false</b> };
+    <b>if</b> (!voted || !vote) {
+        num_approvals = num_approvals + 1;
+    };
+    sequence_number == multisig_account_resource.last_executed_sequence_number + 1 &&
+        num_approvals &gt;= multisig_account_resource.num_signatures_required
+}
+</code></pre>
+
+
+
+</details>
+
 <a id="0x1_multisig_account_can_be_rejected"></a>
 
 ## Function `can_be_rejected`
@@ -1237,6 +1282,48 @@ Return true if the transaction with given transaction id can be officially rejec
     );
     <b>let</b> transaction = <a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&multisig_account_resource.transactions, sequence_number);
     <b>let</b> (_, num_rejections) = <a href="multisig_account.md#0x1_multisig_account_num_approvals_and_rejections">num_approvals_and_rejections</a>(&multisig_account_resource.owners, transaction);
+    sequence_number == multisig_account_resource.last_executed_sequence_number + 1 &&
+        num_rejections &gt;= multisig_account_resource.num_signatures_required
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_multisig_account_can_reject"></a>
+
+## Function `can_reject`
+
+Return true if the owner can execute the "rejected" transaction with given transaction id now.
+
+
+<pre><code>#[view]
+<b>public</b> <b>fun</b> <a href="multisig_account.md#0x1_multisig_account_can_reject">can_reject</a>(owner: <b>address</b>, <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>: <b>address</b>, sequence_number: u64): bool
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="multisig_account.md#0x1_multisig_account_can_reject">can_reject</a>(
+    owner: <b>address</b>, <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>: <b>address</b>, sequence_number: u64): bool <b>acquires</b> <a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a> {
+    <b>let</b> multisig_account_resource = <b>borrow_global</b>&lt;<a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a>&gt;(<a href="multisig_account.md#0x1_multisig_account">multisig_account</a>);
+    <a href="multisig_account.md#0x1_multisig_account_assert_is_owner_addr">assert_is_owner_addr</a>(owner, multisig_account_resource);
+    <b>assert</b>!(
+        sequence_number &gt; 0 && sequence_number &lt; multisig_account_resource.next_sequence_number,
+        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="multisig_account.md#0x1_multisig_account_EINVALID_SEQUENCE_NUMBER">EINVALID_SEQUENCE_NUMBER</a>),
+    );
+    <b>let</b> transaction = <a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&multisig_account_resource.transactions, sequence_number);
+    <b>let</b> (_, num_rejections) = <a href="multisig_account.md#0x1_multisig_account_num_approvals_and_rejections">num_approvals_and_rejections</a>(&multisig_account_resource.owners, transaction);
+    // Rejected transaction execution implicitly votes for rejection.
+    <b>let</b> voted = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&transaction.votes, &owner);
+    <b>let</b> vote = <b>if</b> (voted) { *<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&transaction.votes, &owner) } <b>else</b> { <b>false</b> };
+    <b>if</b> (!voted || vote) {
+        num_rejections = num_rejections + 1;
+    };
     sequence_number == multisig_account_resource.last_executed_sequence_number + 1 &&
         num_rejections &gt;= multisig_account_resource.num_signatures_required
 }
@@ -2296,13 +2383,11 @@ Remove the next transaction if it has sufficient owner rejections.
     <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>: <b>address</b>,
 ) <b>acquires</b> <a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a> {
     <a href="multisig_account.md#0x1_multisig_account_assert_multisig_account_exists">assert_multisig_account_exists</a>(<a href="multisig_account.md#0x1_multisig_account">multisig_account</a>);
+    <b>let</b> sequence_number = <a href="multisig_account.md#0x1_multisig_account_last_resolved_sequence_number">last_resolved_sequence_number</a>(<a href="multisig_account.md#0x1_multisig_account">multisig_account</a>) + 1;
+    // Implicitly vote for rejection.
+    <a href="multisig_account.md#0x1_multisig_account_reject_transaction">reject_transaction</a>(owner, <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>, sequence_number);
+
     <b>let</b> multisig_account_resource = <b>borrow_global_mut</b>&lt;<a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a>&gt;(<a href="multisig_account.md#0x1_multisig_account">multisig_account</a>);
-    <a href="multisig_account.md#0x1_multisig_account_assert_is_owner">assert_is_owner</a>(owner, multisig_account_resource);
-    <b>let</b> sequence_number = multisig_account_resource.last_executed_sequence_number + 1;
-    <b>assert</b>!(
-        <a href="../../aptos-stdlib/doc/table.md#0x1_table_contains">table::contains</a>(&multisig_account_resource.transactions, sequence_number),
-        <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_not_found">error::not_found</a>(<a href="multisig_account.md#0x1_multisig_account_ETRANSACTION_NOT_FOUND">ETRANSACTION_NOT_FOUND</a>),
-    );
     <b>let</b> (_, num_rejections) = <a href="multisig_account.md#0x1_multisig_account_remove_executed_transaction">remove_executed_transaction</a>(multisig_account_resource);
     <b>assert</b>!(
         num_rejections &gt;= multisig_account_resource.num_signatures_required,
@@ -2353,8 +2438,16 @@ Transaction payload is optional if it's already stored on chain for the transact
         <a href="../../aptos-stdlib/doc/table.md#0x1_table_contains">table::contains</a>(&multisig_account_resource.transactions, sequence_number),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="multisig_account.md#0x1_multisig_account_ETRANSACTION_NOT_FOUND">ETRANSACTION_NOT_FOUND</a>),
     );
+    <b>let</b> owner_addr = address_of(owner);
     <b>let</b> transaction = <a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&multisig_account_resource.transactions, sequence_number);
     <b>let</b> (num_approvals, _) = <a href="multisig_account.md#0x1_multisig_account_num_approvals_and_rejections">num_approvals_and_rejections</a>(&multisig_account_resource.owners, transaction);
+
+    // Transaction execution implicitly votes for approval.
+    <b>let</b> voted = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&transaction.votes, &owner_addr);
+    <b>let</b> vote = <b>if</b> (voted) { *<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&transaction.votes, &owner_addr) } <b>else</b> { <b>false</b> };
+    <b>if</b>(!voted || !vote) {
+        num_approvals = num_approvals + 1;
+    };
     <b>assert</b>!(
         num_approvals &gt;= multisig_account_resource.num_signatures_required,
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_invalid_argument">error::invalid_argument</a>(<a href="multisig_account.md#0x1_multisig_account_ENOT_ENOUGH_APPROVALS">ENOT_ENOUGH_APPROVALS</a>),
@@ -2399,7 +2492,26 @@ This function is private so no other code can call this beside the VM itself as 
     transaction_payload: <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;,
 ) <b>acquires</b> <a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a> {
     <b>let</b> multisig_account_resource = <b>borrow_global_mut</b>&lt;<a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a>&gt;(<a href="multisig_account.md#0x1_multisig_account">multisig_account</a>);
+    <b>let</b> sequence_number = multisig_account_resource.last_executed_sequence_number + 1;
+    <b>let</b> transaction = <a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&multisig_account_resource.transactions, sequence_number);
+    <b>let</b> voted = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&transaction.votes, &executor);
+    <b>let</b> vote = <b>if</b> (voted) { *<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&transaction.votes, &executor) } <b>else</b> { <b>false</b> };
+
     <b>let</b> (num_approvals, _) = <a href="multisig_account.md#0x1_multisig_account_remove_executed_transaction">remove_executed_transaction</a>(multisig_account_resource);
+
+    // Transaction execution implicitly votes for approval.
+    <b>if</b>(!voted || !vote) {
+        num_approvals = num_approvals + 1;
+    };
+    emit_event(
+        &<b>mut</b> multisig_account_resource.vote_events,
+        <a href="multisig_account.md#0x1_multisig_account_VoteEvent">VoteEvent</a> {
+            owner: executor,
+            sequence_number,
+            approved: <b>true</b>,
+        }
+    );
+
     emit_event(
         &<b>mut</b> multisig_account_resource.execute_transaction_events,
         <a href="multisig_account.md#0x1_multisig_account_TransactionExecutionSucceededEvent">TransactionExecutionSucceededEvent</a> {
@@ -2440,7 +2552,26 @@ This function is private so no other code can call this beside the VM itself as 
     execution_error: <a href="multisig_account.md#0x1_multisig_account_ExecutionError">ExecutionError</a>,
 ) <b>acquires</b> <a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a> {
     <b>let</b> multisig_account_resource = <b>borrow_global_mut</b>&lt;<a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a>&gt;(<a href="multisig_account.md#0x1_multisig_account">multisig_account</a>);
+    <b>let</b> sequence_number = multisig_account_resource.last_executed_sequence_number + 1;
+    <b>let</b> transaction = <a href="../../aptos-stdlib/doc/table.md#0x1_table_borrow">table::borrow</a>(&multisig_account_resource.transactions, sequence_number);
+    <b>let</b> voted = <a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_contains_key">simple_map::contains_key</a>(&transaction.votes, &executor);
+    <b>let</b> vote = <b>if</b> (voted) { *<a href="../../aptos-stdlib/doc/simple_map.md#0x1_simple_map_borrow">simple_map::borrow</a>(&transaction.votes, &executor) } <b>else</b> { <b>false</b> };
+
     <b>let</b> (num_approvals, _) = <a href="multisig_account.md#0x1_multisig_account_remove_executed_transaction">remove_executed_transaction</a>(multisig_account_resource);
+
+    // Transaction execution implicitly votes for approval.
+    <b>if</b>(!voted || !vote) {
+        num_approvals = num_approvals + 1;
+    };
+    emit_event(
+        &<b>mut</b> multisig_account_resource.vote_events,
+        <a href="multisig_account.md#0x1_multisig_account_VoteEvent">VoteEvent</a> {
+            owner: executor,
+            sequence_number,
+            approved: <b>true</b>,
+        }
+    );
+
     emit_event(
         &<b>mut</b> multisig_account_resource.transaction_execution_failed_events,
         <a href="multisig_account.md#0x1_multisig_account_TransactionExecutionFailedEvent">TransactionExecutionFailedEvent</a> {
@@ -2627,8 +2758,32 @@ This function is private so no other code can call this beside the VM itself as 
 
 
 <pre><code><b>fun</b> <a href="multisig_account.md#0x1_multisig_account_assert_is_owner">assert_is_owner</a>(owner: &<a href="../../aptos-stdlib/../move-stdlib/doc/signer.md#0x1_signer">signer</a>, <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>: &<a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a>) {
+    <a href="multisig_account.md#0x1_multisig_account_assert_is_owner_addr">assert_is_owner_addr</a>(address_of(owner), <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>);
+}
+</code></pre>
+
+
+
+</details>
+
+<a id="0x1_multisig_account_assert_is_owner_addr"></a>
+
+## Function `assert_is_owner_addr`
+
+
+
+<pre><code><b>fun</b> <a href="multisig_account.md#0x1_multisig_account_assert_is_owner_addr">assert_is_owner_addr</a>(owner: <b>address</b>, <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>: &<a href="multisig_account.md#0x1_multisig_account_MultisigAccount">multisig_account::MultisigAccount</a>)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>fun</b> <a href="multisig_account.md#0x1_multisig_account_assert_is_owner_addr">assert_is_owner_addr</a>(owner: <b>address</b>, <a href="multisig_account.md#0x1_multisig_account">multisig_account</a>: &<a href="multisig_account.md#0x1_multisig_account_MultisigAccount">MultisigAccount</a>) {
     <b>assert</b>!(
-        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&<a href="multisig_account.md#0x1_multisig_account">multisig_account</a>.owners, &address_of(owner)),
+        <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector_contains">vector::contains</a>(&<a href="multisig_account.md#0x1_multisig_account">multisig_account</a>.owners, &owner),
         <a href="../../aptos-stdlib/../move-stdlib/doc/error.md#0x1_error_permission_denied">error::permission_denied</a>(<a href="multisig_account.md#0x1_multisig_account_ENOT_OWNER">ENOT_OWNER</a>),
     );
 }
