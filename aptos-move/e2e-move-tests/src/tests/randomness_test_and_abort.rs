@@ -8,8 +8,13 @@ use aptos_types::{
     account_address::AccountAddress,
     on_chain_config::OnChainConfig,
     randomness::PerBlockRandomness,
-    transaction::{Script, TransactionStatus},
+    transaction::{ExecutionStatus, Script, TransactionStatus},
 };
+use claims::assert_ok;
+use move_core_types::{ident_str, language_storage::ModuleId, vm_status::AbortLocation};
+
+// Error codes from randomness module.
+const E_NON_ANNOTATED_RANDOMNESS_ENTRY_FUNCTION: u64 = 2;
 
 #[test]
 fn test_and_abort_defense_is_sound_and_correct() {
@@ -29,15 +34,7 @@ fn test_and_abort_defense_is_sound_and_correct() {
     }
 
     // The randomness module is initialized, but the randomness seed is not set.
-    let fx = h.aptos_framework_account();
-    let mut pbr = h
-        .read_resource::<PerBlockRandomness>(fx.address(), PerBlockRandomness::struct_tag())
-        .unwrap();
-    assert!(pbr.seed.is_none());
-
-    pbr.seed = Some((0..32).map(|_| 0u8).collect::<Vec<u8>>());
-    assert_eq!(pbr.seed.as_ref().unwrap().len(), 32);
-    h.set_resource(*fx.address(), PerBlockRandomness::struct_tag(), &pbr);
+    set_randomness_seed(&mut h);
 
     // This is a safe call that the randomness API should allow through.
     let status = run_entry_func(
@@ -56,6 +53,58 @@ fn test_and_abort_defense_is_sound_and_correct() {
         "0x1::some_randapp::safe_friend_entry_call",
     );
     assert_success!(status);
+}
+
+#[test]
+fn test_uses_randomness_annotation() {
+    let mut h = MoveHarness::new();
+    deploy_code(AccountAddress::ONE, "randomness.data/pack", &mut h);
+    set_randomness_seed(&mut h);
+
+    let should_succeed = [
+        "0x1::entry_functions::ok_if_not_annotated_and_not_using_randomness",
+        "0x1::entry_functions::ok_if_annotated_and_not_using_randomness",
+        "0x1::entry_functions::ok_if_annotated_and_using_randomness",
+    ];
+    for entry_func in should_succeed {
+        let status = run_entry_func(&mut h, "0xa11ce", entry_func);
+        assert_success!(status);
+    }
+
+    // Non-annotated functions which use randomness fail at runtime.
+    let entry_func = "0x1::entry_functions::fail_if_not_annotated_and_using_randomness";
+    let status = run_entry_func(&mut h, "0xa11ce", entry_func);
+    let status = assert_ok!(status.as_kept_status());
+
+    if let ExecutionStatus::MoveAbort {
+        location,
+        code,
+        info: _,
+    } = status
+    {
+        assert_eq!(
+            location,
+            AbortLocation::Module(ModuleId::new(
+                AccountAddress::ONE,
+                ident_str!("randomness").to_owned()
+            ))
+        );
+        assert_eq!(code, E_NON_ANNOTATED_RANDOMNESS_ENTRY_FUNCTION);
+    } else {
+        unreachable!("Non-annotated entry call function should result in Move abort")
+    }
+}
+
+fn set_randomness_seed(h: &mut MoveHarness) {
+    let fx = h.aptos_framework_account();
+    let mut pbr = h
+        .read_resource::<PerBlockRandomness>(fx.address(), PerBlockRandomness::struct_tag())
+        .unwrap();
+    assert!(pbr.seed.is_none());
+
+    pbr.seed = Some((0..32).map(|_| 0u8).collect::<Vec<u8>>());
+    assert_eq!(pbr.seed.as_ref().unwrap().len(), 32);
+    h.set_resource(*fx.address(), PerBlockRandomness::struct_tag(), &pbr);
 }
 
 fn deploy_code(
