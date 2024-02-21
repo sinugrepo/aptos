@@ -27,7 +27,8 @@ fn test_and_abort_defense_is_sound_and_correct() {
     ] {
         println!("Testing {dir}");
         // This will redeploy the package, so backwards compatibility must be maintained in these directories.
-        let (_, package) = deploy_code(AccountAddress::ONE, dir, &mut h);
+        let (_, package) =
+            deploy_code(AccountAddress::ONE, dir, &mut h).expect("building package must succeed");
 
         let status = run_script(&mut h, &package);
         assert_abort!(status, 1);
@@ -56,9 +57,17 @@ fn test_and_abort_defense_is_sound_and_correct() {
 }
 
 #[test]
+fn test_only_entry_function_can_be_annotated() {
+    // Make sure building a package fails.
+    let mut h = MoveHarness::new();
+    assert!(deploy_code(AccountAddress::ONE, "randomness.data/invalid_pack", &mut h).is_err());
+}
+
+#[test]
 fn test_uses_randomness_annotation() {
     let mut h = MoveHarness::new();
-    deploy_code(AccountAddress::ONE, "randomness.data/pack", &mut h);
+    deploy_code(AccountAddress::ONE, "randomness.data/pack", &mut h)
+        .expect("building package must succeed");
     set_randomness_seed(&mut h);
 
     let should_succeed = [
@@ -111,19 +120,18 @@ fn deploy_code(
     addr: AccountAddress,
     code_path: &str,
     harness: &mut MoveHarness,
-) -> (Account, BuiltPackage) {
+) -> anyhow::Result<(Account, BuiltPackage)> {
     let account = harness.new_account_at(addr);
 
     let package = build_package(
         common::test_dir_path(code_path),
         aptos_framework::BuildOptions::default(),
-    )
-    .expect("building package must succeed");
+    )?;
 
     let txn = harness.create_publish_built_package(&account, &package, |_| {});
 
     assert_success!(harness.run(txn));
-    (account, package)
+    Ok((account, package))
 }
 
 fn run_script(h: &mut MoveHarness, package: &BuiltPackage) -> TransactionStatus {

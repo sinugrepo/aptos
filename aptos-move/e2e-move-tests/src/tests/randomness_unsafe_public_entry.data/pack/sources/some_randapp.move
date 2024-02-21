@@ -16,7 +16,6 @@ module 0x1::some_randapp {
         let _ = randomness::u64_integer();
     }
 
-    #[uses_randomness]
     public fun unsafe_public_call() {
         let _ = randomness::u64_integer();
     }
