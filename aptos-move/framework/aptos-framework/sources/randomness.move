@@ -16,6 +16,9 @@ module aptos_framework::randomness {
     /// Randomness APIs calls must originate from a private entry function. Otherwise, test-and-abort attacks are possible.
     const E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT: u64 = 1;
 
+    /// Entry functions which use randomness should be annotated with #[uses_randomness] attribute.
+    const E_NON_ANNOTATED_RANDOMNESS_ENTRY_FUNCTION: u64 = 2;
+
     /// 32-byte randomness seed unique to every block.
     /// This resource is updated in every block prologue.
     struct PerBlockRandomness has drop, key {
