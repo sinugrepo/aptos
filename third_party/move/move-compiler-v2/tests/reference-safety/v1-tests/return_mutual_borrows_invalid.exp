@@ -1,14 +1,6 @@
 
 Diagnostics:
 error: cannot move mutable reference in local `s1` which is still borrowed
-   ┌─ tests/reference-safety/v1-tests/return_mutual_borrows_invalid.move:16:10
-   │
-15 │         let f = freeze(s1);
-   │                 ---------- previous call result
-16 │         (s1, f)
-   │          ^^ moved here
-
-error: cannot move mutable reference in local `s1` which is still borrowed
    ┌─ tests/reference-safety/v1-tests/return_mutual_borrows_invalid.move:20:10
    │
 19 │         let f = &s1.f;
