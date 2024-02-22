@@ -525,7 +525,6 @@ where
     /// reconfiguration. If we are currently connected to this validator, calling
     /// this function will close our connection to it.
     async fn close_stale_connections(&mut self) {
-        // TODO: stale peer closing is disabled for test, figure out what exactly 'stale' was supposed to mean and bring it back
         // see disable below...
         self.update_peer_metadata_cache();
         if let Some(trusted_peers) = self.get_trusted_peers() {
@@ -549,7 +548,7 @@ where
                         self.peer_senders_generation = new_generation;
                     }
                 }
-                #[cfg(disabled)] // TODO: actually closing 'stale' is disabled until fixed
+                // #[cfg(disabled)] // TODO: actually closing 'stale' is disabled until fixed
                 match self.peer_senders_cache.get(peer_network_id) {
                     None => {
                         // already gone, nothing to do
@@ -837,7 +836,7 @@ where
         // the next dial attempt for this peer.
         let dial_delay = dial_state.next_backoff_delay(self.max_delay);
         let f_delay = self.time_service.sleep(dial_delay);
-        info!("queue_dial_peer going to dial {} after delay {:?}", addr, dial_delay);
+        info!("queue_dial_peer going to dial {} @ {} after delay {:?}", peer_id.short_str_lossless(), addr, dial_delay);
 
         let (cancel_tx, cancel_rx) = oneshot::channel();
 
@@ -866,7 +865,7 @@ where
                             .network_address(&addr),
                         "{} dialing peer {} at {}",
                         network_context,
-                        peer_id.short_str(),
+                        peer_id.short_str_lossless(),
                         addr
                     );
                     let result = transport_clone.dial(
@@ -887,7 +886,7 @@ where
                                     .network_address(&addr),
                                 "{} dialing peer {} ok",
                                 network_context,
-                                peer_id.short_str()
+                                peer_id.short_str_lossless()
                             );
                             DialResult::Success
                         },
@@ -898,7 +897,7 @@ where
                                     .network_address(&addr),
                                 "{} dialing peer {} err {}",
                                 network_context,
-                                peer_id.short_str(),
+                                peer_id.short_str_lossless(),
                                 err,
                             );
                             DialResult::Failed
@@ -912,7 +911,7 @@ where
                             .network_address(&addr),
                         "{} dialing CANCELLED {} at {}",
                         network_context,
-                        peer_id.short_str(),
+                        peer_id.short_str_lossless(),
                         addr
                     );
                     DialResult::Cancelled
