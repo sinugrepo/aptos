@@ -13,6 +13,7 @@ use aptos_protos::{
     util::timestamp::FILE_DESCRIPTOR_SET as UTIL_TIMESTAMP_FILE_DESCRIPTOR_SET,
 };
 use serde::{Deserialize, Serialize};
+use tracing::info;
 use std::{collections::HashSet, net::SocketAddr, sync::Arc};
 use tonic::{
     codec::CompressionEncoding,
@@ -173,6 +174,7 @@ impl RunnableConfig for IndexerGrpcDataServiceConfig {
                 cache_storage_format,
             )
             .await?;
+        info!("InMemoryCache is ready.");
         // Add authentication interceptor.
         let server = RawDataServerWrapper::new(
             self.redis_read_replica_address.clone(),

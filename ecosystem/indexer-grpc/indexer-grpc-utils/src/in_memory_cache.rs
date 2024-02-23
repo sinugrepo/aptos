@@ -41,7 +41,10 @@ impl InMemoryCache {
             .build();
         let in_memory_latest_version =
             warm_up_the_cache(conn.clone(), cache.clone(), storage_format).await?;
-
+        tracing::info!(
+            "In-memory cache is warmed up to version {}",
+            in_memory_latest_version
+        );
         let cancellation_token = tokio_util::sync::CancellationToken::new();
         let cancellation_token_clone = cancellation_token.clone();
         let latest_version = Arc::new(RwLock::new(in_memory_latest_version));
@@ -53,6 +56,7 @@ impl InMemoryCache {
             cancellation_token_clone,
         )
         .await;
+        tracing::info!("In-memory cache is created");
         Ok(Self {
             cache,
             latest_version,
@@ -167,6 +171,11 @@ async fn create_update_task<C>(
                     Arc::new(transaction),
                 );
             }
+            tracing::info!(
+                "In-memory cache is updated from version {} to version {}",
+                in_cache_latest_version,
+                current_latest_version
+            );
             *latest_version.write().await = current_latest_version;
         }
     });
