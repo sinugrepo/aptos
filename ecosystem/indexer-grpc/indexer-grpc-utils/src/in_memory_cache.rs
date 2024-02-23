@@ -107,7 +107,7 @@ where
     C: redis::aio::ConnectionLike + Send + Sync + Clone + 'static,
 {
     let mut conn = conn.clone();
-    let latest_version = get_config_by_key(&mut conn, "latest_versions")
+    let latest_version = get_config_by_key(&mut conn, "latest_version")
         .await
         .context("Failed to fetch the latest version from redis")?
         .context("Latest version doesn't exist in Redis")?;
@@ -138,7 +138,7 @@ async fn create_update_task<C>(
             IN_MEMORY_CACHE_LOOKUP_RETRY_INTERVAL_MS,
         ));
         loop {
-            let current_latest_version = get_config_by_key(&mut conn, "latest_versions")
+            let current_latest_version = get_config_by_key(&mut conn, "latest_version")
                 .await
                 .context("Failed to fetch the latest version from redis")
                 .unwrap()
