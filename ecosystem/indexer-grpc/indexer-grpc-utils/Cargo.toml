@@ -28,6 +28,7 @@ futures = { workspace = true }
 futures-core = { workspace = true }
 futures-util = { workspace = true }
 itertools = { workspace = true }
+mini-moka = { workspace = true }
 once_cell = { workspace = true }
 prometheus = { workspace = true }
 prost = { workspace = true }
@@ -38,6 +39,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 toml = { workspace = true }
 tonic = { workspace = true }
 tracing = { workspace = true }

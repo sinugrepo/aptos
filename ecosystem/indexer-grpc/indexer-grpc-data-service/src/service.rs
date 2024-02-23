@@ -19,6 +19,7 @@ use aptos_indexer_grpc_utils::{
     },
     counters::{log_grpc_step, IndexerGrpcStep, NUM_MULTI_FETCH_OVERLAPPED_VERSIONS},
     file_store_operator::FileStoreOperator,
+    in_memory_cache::InMemoryCache,
     time_diff_since_pb_timestamp_in_secs,
     types::RedisUrl,
 };
@@ -80,6 +81,7 @@ pub struct RawDataServerWrapper {
     pub file_store_config: IndexerGrpcFileStoreConfig,
     pub data_service_response_channel_size: usize,
     pub cache_storage_format: StorageFormat,
+    in_memory_cache: Arc<InMemoryCache>,
 }
 
 impl RawDataServerWrapper {
@@ -88,6 +90,7 @@ impl RawDataServerWrapper {
         file_store_config: IndexerGrpcFileStoreConfig,
         data_service_response_channel_size: usize,
         cache_storage_format: StorageFormat,
+        in_memory_cache: Arc<InMemoryCache>,
     ) -> anyhow::Result<Self> {
         Ok(Self {
             redis_client: Arc::new(
@@ -98,6 +101,7 @@ impl RawDataServerWrapper {
             file_store_config,
             data_service_response_channel_size,
             cache_storage_format,
+            in_memory_cache,
         })
     }
 }
@@ -172,6 +176,7 @@ impl RawData for RawDataServerWrapper {
         let redis_client = self.redis_client.clone();
         let cache_storage_format = self.cache_storage_format;
         let request_metadata = Arc::new(request_metadata);
+        let in_memory_cache = self.in_memory_cache.clone();
         tokio::spawn({
             let request_metadata = request_metadata.clone();
             async move {
@@ -183,6 +188,7 @@ impl RawData for RawDataServerWrapper {
                     transactions_count,
                     tx,
                     current_version,
+                    in_memory_cache,
                 )
                 .await;
             }
@@ -214,7 +220,12 @@ async fn get_data_with_tasks(
     file_store_operator: Arc<Box<dyn FileStoreOperator>>,
     request_metadata: Arc<IndexerGrpcRequestMetadata>,
     cache_storage_format: StorageFormat,
+    in_memory_cache: Arc<InMemoryCache>,
 ) -> DataFetchSubTaskResult {
+    let in_memory_transactions = in_memory_cache.get_transactions(start_version).await;
+    if !in_memory_transactions.is_empty() {
+        return DataFetchSubTaskResult::Success(in_memory_transactions);
+    }
     let cache_coverage_status = cache_operator
         .check_cache_coverage_status(start_version)
         .await;
@@ -351,6 +362,7 @@ async fn data_fetcher_task(
     transactions_count: Option<u64>,
     tx: tokio::sync::mpsc::Sender<Result<TransactionsResponse, Status>>,
     mut current_version: u64,
+    in_memory_cache: Arc<InMemoryCache>,
 ) {
     let mut connection_start_time = Some(std::time::Instant::now());
     let mut transactions_count = transactions_count;
@@ -444,6 +456,7 @@ async fn data_fetcher_task(
             file_store_operator.clone(),
             request_metadata.clone(),
             cache_storage_format,
+            in_memory_cache.clone(),
         )
         .await
         {
