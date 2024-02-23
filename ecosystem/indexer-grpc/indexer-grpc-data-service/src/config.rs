@@ -13,7 +13,6 @@ use aptos_protos::{
     util::timestamp::FILE_DESCRIPTOR_SET as UTIL_TIMESTAMP_FILE_DESCRIPTOR_SET,
 };
 use serde::{Deserialize, Serialize};
-use tracing::info;
 use std::{collections::HashSet, net::SocketAddr, sync::Arc};
 use tonic::{
     codec::CompressionEncoding,
@@ -22,6 +21,7 @@ use tonic::{
     transport::Server,
     Request, Status,
 };
+use tracing::info;
 
 pub const SERVER_NAME: &str = "idxdatasvc";
 
