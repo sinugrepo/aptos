@@ -17,7 +17,9 @@ anyhow = { workspace = true }
 aptos-bitvec = { workspace = true }
 aptos-crypto = { workspace = true }
 aptos-crypto-derive = { workspace = true }
+aptos-dkg = { workspace = true }
 aptos-experimental-runtimes = { workspace = true }
+aptos-global-constants = { workspace = true }
 ark-bn254 = { workspace = true }
 ark-ff = { workspace = true }
 ark-groth16 = { workspace = true }
@@ -28,6 +30,7 @@ bcs = { workspace = true }
 bytes = { workspace = true }
 chrono = { workspace = true }
 derivative = { workspace = true }
+fixed = { workspace = true }
 hex = { workspace = true }
 itertools = { workspace = true }
 jsonwebtoken = { workspace = true }
@@ -44,6 +47,8 @@ proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
 rand = { workspace = true }
 rayon = { workspace = true }
+ring = { workspace = true }
+rsa = { workspace = true }
 serde = { workspace = true }
 serde-big-array = { workspace = true }
 serde_bytes = { workspace = true }
