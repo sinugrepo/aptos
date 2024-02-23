@@ -537,8 +537,11 @@ where
                 if !self.config.mutual_authentication
                     && metadata.connection_metadata.origin == ConnectionOrigin::Inbound
                     && (metadata.connection_metadata.role == PeerRole::ValidatorFullNode || metadata.connection_metadata.role == PeerRole::Unknown) {
+                    // aka
+                    // IF (not in trusted set) AND ((mutual auth on) OR (outbound connection) OR (role is other than {VFN, Unknown})) THEN STALE
                     continue; // not stale
                 }
+
                 // is stale! Close...
 
                 match self.peer_senders.get_generational(self.peer_senders_generation) {
@@ -548,7 +551,7 @@ where
                         self.peer_senders_generation = new_generation;
                     }
                 }
-                // #[cfg(disabled)] // TODO: actually closing 'stale' is disabled until fixed
+                #[cfg(disabled)] // TODO: actually closing 'stale' is disabled until fixed
                 match self.peer_senders_cache.get(peer_network_id) {
                     None => {
                         // already gone, nothing to do
