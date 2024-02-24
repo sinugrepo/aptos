@@ -42,13 +42,13 @@ error: unable to infer type: `M::G2<?8>`
 28 │         G2{} == G2{};
    │         ^^^^
 
-error: invalid call of `==`: tuples have different arity (3 != 2) for argument 2
+error: invalid call of `==`: tuple element count mismatch (found 2 expected 3) for argument 2
    ┌─ tests/checking/typing/eq_invalid.move:35:22
    │
 35 │         (1, 2, 3) == (0, 1);
    │                      ^^^^^^
 
-error: invalid call of `==`: tuples have different arity (2 != 3) for argument 2
+error: invalid call of `==`: tuple element count mismatch (found 3 expected 2) for argument 2
    ┌─ tests/checking/typing/eq_invalid.move:36:19
    │
 36 │         (0, 1) == (1, 2, 3);

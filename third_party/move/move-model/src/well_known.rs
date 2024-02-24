@@ -20,6 +20,7 @@ pub fn is_verify_only_attribute_name(s: &str) -> bool {
     s == "verify_only"
 }
 
+pub const VECTOR_MODULE: &str = "vector";
 pub const VECTOR_BORROW_MUT: &str = "vector::borrow_mut";
 pub const EVENT_EMIT_EVENT: &str = "event::emit_event";
 
@@ -36,3 +37,6 @@ pub const TYPE_NAME_GET_SPEC: &str = "type_name::$get";
 // The main difference (from a prover's perspective) include:
 // - formatting of an address (part of the struct name), and
 // - whether it is in `stdlib` or `extlib`.
+
+/// The well-known name of the first parameter of a method.
+pub const RECEIVER_PARAM_NAME: &str = "self";

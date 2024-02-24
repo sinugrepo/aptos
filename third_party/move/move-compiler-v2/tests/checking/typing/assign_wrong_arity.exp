@@ -1,6 +1,6 @@
 
 Diagnostics:
-error: tuples have different arity (0 != 3) (from assignment or declaration context)
+error: tuple element count mismatch (found 3 expected 0) (from assignment or declaration context)
   ┌─ tests/checking/typing/assign_wrong_arity.move:7:9
   │
 7 │         x = (0, 1, 2);

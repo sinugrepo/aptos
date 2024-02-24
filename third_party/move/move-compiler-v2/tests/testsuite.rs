@@ -67,7 +67,11 @@ fn test_runner(path: &Path) -> datatest_stable::Result<()> {
     }
     let mut sources = extract_test_directives(path, "// dep:")?;
     sources.push(path.to_string_lossy().to_string());
-    let deps = vec![path_from_crate_root("../move-stdlib/sources")];
+    let deps = if extract_test_directives(path, "// no-stdlib")?.is_empty() {
+        vec![path_from_crate_root("../move-stdlib/sources")]
+    } else {
+        vec![]
+    };
     let path_string = path.to_string_lossy();
     let warn_unused = path_string.contains("unused");
 

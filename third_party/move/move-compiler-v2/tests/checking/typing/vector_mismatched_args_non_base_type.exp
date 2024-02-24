@@ -6,7 +6,7 @@ error: mutability mismatch (&mut != &)
 7 │         vector<&mut u64>[&0];
   │                          ^^
 
-error: tuples have different arity (2 != 0)
+error: tuple element count mismatch (found 2 expected 0)
   ┌─ tests/checking/typing/vector_mismatched_args_non_base_type.move:8:20
   │
 8 │         vector[(), (0, 1)];

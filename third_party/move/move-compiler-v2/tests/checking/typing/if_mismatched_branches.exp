@@ -42,13 +42,13 @@ error: expected `bool` but found `integer` (in if-else)
 15 │         if (cond) (0, false) else (true, @0x0);
    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: tuples have different arity (3 != 2) (in if-else)
+error: tuple element count mismatch (found 3 expected 2) (in if-else)
    ┌─ tests/checking/typing/if_mismatched_branches.move:19:9
    │
 19 │         if (cond) (0, false, 0) else (0, false);
    │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-error: tuples have different arity (2 != 3) (in if-else)
+error: tuple element count mismatch (found 2 expected 3) (in if-else)
    ┌─ tests/checking/typing/if_mismatched_branches.move:20:9
    │
 20 │         if (cond) (0, false) else (0, false, 0);
