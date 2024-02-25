@@ -532,9 +532,13 @@ impl DagStore {
                 .flat_map(|(_, round_ref)| round_ref.iter().flatten())
                 .map(|node_status| *node_status.as_node().metadata().digest())
                 .collect();
-            if let Err(e) = self.storage.delete_certified_nodes(digests) {
-                error!("Error deleting expired nodes: {:?}", e);
-            }
+            let storage = self.storage.clone();
+            // TODO: limit spawns?
+            tokio::task::spawn_blocking(move || {
+                if let Err(e) = storage.delete_certified_nodes(digests) {
+                    error!("Error deleting expired nodes: {:?}", e);
+                }
+            });
         }
     }
 }
