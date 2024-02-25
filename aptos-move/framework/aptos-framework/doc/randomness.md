@@ -26,10 +26,10 @@ On-chain randomness utils.
 -  [Function `permutation`](#0x1_randomness_permutation)
 -  [Function `safe_add_mod`](#0x1_randomness_safe_add_mod)
 -  [Function `fetch_and_increment_txn_counter`](#0x1_randomness_fetch_and_increment_txn_counter)
--  [Function `is_safe_call`](#0x1_randomness_is_safe_call)
+-  [Function `is_unbiasable`](#0x1_randomness_is_unbiasable)
 -  [Specification](#@Specification_1)
     -  [Function `fetch_and_increment_txn_counter`](#@Specification_1_fetch_and_increment_txn_counter)
-    -  [Function `is_safe_call`](#@Specification_1_is_safe_call)
+    -  [Function `is_unbiasable`](#@Specification_1_is_unbiasable)
 
 
 <pre><code><b>use</b> <a href="../../aptos-stdlib/../move-stdlib/doc/hash.md#0x1_hash">0x1::hash</a>;
@@ -98,20 +98,11 @@ This resource is updated in every block prologue.
 
 <a id="0x1_randomness_E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT"></a>
 
-Randomness APIs calls must originate from a private entry function. Otherwise, test-and-abort attacks are possible.
+Randomness APIs calls must originate from a private entry function with
+<code>#[unbiasable]</code> annotation. Otherwise, test-and-abort attacks are possible.
 
 
 <pre><code><b>const</b> <a href="randomness.md#0x1_randomness_E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT">E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT</a>: u64 = 1;
-</code></pre>
-
-
-
-<a id="0x1_randomness_E_NON_ANNOTATED_RANDOMNESS_ENTRY_FUNCTION"></a>
-
-Entry functions which use randomness should be annotated with #[uses_randomness] attribute.
-
-
-<pre><code><b>const</b> <a href="randomness.md#0x1_randomness_E_NON_ANNOTATED_RANDOMNESS_ENTRY_FUNCTION">E_NON_ANNOTATED_RANDOMNESS_ENTRY_FUNCTION</a>: u64 = 2;
 </code></pre>
 
 
@@ -193,7 +184,7 @@ Generate 32 random bytes.
 
 
 <pre><code><b>public</b> <b>fun</b> <a href="randomness.md#0x1_randomness_next_blob">next_blob</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt; <b>acquires</b> <a href="randomness.md#0x1_randomness_PerBlockRandomness">PerBlockRandomness</a> {
-    <b>assert</b>!(<a href="randomness.md#0x1_randomness_is_safe_call">is_safe_call</a>(), <a href="randomness.md#0x1_randomness_E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT">E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT</a>);
+    <b>assert</b>!(<a href="randomness.md#0x1_randomness_is_unbiasable">is_unbiasable</a>(), <a href="randomness.md#0x1_randomness_E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT">E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT</a>);
 
     <b>let</b> input = <a href="randomness.md#0x1_randomness_DST">DST</a>;
     <b>let</b> <a href="randomness.md#0x1_randomness">randomness</a> = <b>borrow_global</b>&lt;<a href="randomness.md#0x1_randomness_PerBlockRandomness">PerBlockRandomness</a>&gt;(@aptos_framework);
@@ -666,6 +657,7 @@ Compute <code>(a + b) % m</code>, assuming <code>m &gt;= 1, 0 &lt;= a &lt; m, 0&
 ## Function `fetch_and_increment_txn_counter`
 
 Fetches and increments a transaction-specific 32-byte randomness-related counter.
+Aborts with <code><a href="randomness.md#0x1_randomness_E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT">E_API_USE_SUSCEPTIBLE_TO_TEST_AND_ABORT</a></code> if randomness is not unbiasable.
 
 
 <pre><code><b>fun</b> <a href="randomness.md#0x1_randomness_fetch_and_increment_txn_counter">fetch_and_increment_txn_counter</a>(): <a href="../../aptos-stdlib/../move-stdlib/doc/vector.md#0x1_vector">vector</a>&lt;u8&gt;
@@ -684,16 +676,17 @@ Fetches and increments a transaction-specific 32-byte randomness-related counter
 
 </details>
 
-<a id="0x1_randomness_is_safe_call"></a>
+<a id="0x1_randomness_is_unbiasable"></a>
 
-## Function `is_safe_call`
+## Function `is_unbiasable`
 
-Called in each randomness generation function to ensure certain safety invariants.
-1. Ensure that the TXN that led to the call of this function had a private (or friend) entry function as its TXN payload.
-2. TBA
+Called in each randomness generation function to ensure certain safety invariants, namely:
+1. The transaction that led to the call of this function had a private (or friend) entry
+function as its payload.
+2. The entry function had <code>#[unbiasable]</code> annotation.
 
 
-<pre><code><b>fun</b> <a href="randomness.md#0x1_randomness_is_safe_call">is_safe_call</a>(): bool
+<pre><code><b>fun</b> <a href="randomness.md#0x1_randomness_is_unbiasable">is_unbiasable</a>(): bool
 </code></pre>
 
 
@@ -702,7 +695,7 @@ Called in each randomness generation function to ensure certain safety invariant
 <summary>Implementation</summary>
 
 
-<pre><code><b>native</b> <b>fun</b> <a href="randomness.md#0x1_randomness_is_safe_call">is_safe_call</a>(): bool;
+<pre><code><b>native</b> <b>fun</b> <a href="randomness.md#0x1_randomness_is_unbiasable">is_unbiasable</a>(): bool;
 </code></pre>
 
 
@@ -730,12 +723,12 @@ Called in each randomness generation function to ensure certain safety invariant
 
 
 
-<a id="@Specification_1_is_safe_call"></a>
+<a id="@Specification_1_is_unbiasable"></a>
 
-### Function `is_safe_call`
+### Function `is_unbiasable`
 
 
-<pre><code><b>fun</b> <a href="randomness.md#0x1_randomness_is_safe_call">is_safe_call</a>(): bool
+<pre><code><b>fun</b> <a href="randomness.md#0x1_randomness_is_unbiasable">is_unbiasable</a>(): bool
 </code></pre>
 
 

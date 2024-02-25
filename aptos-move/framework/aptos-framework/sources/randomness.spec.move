@@ -3,7 +3,7 @@ spec aptos_framework::randomness {
         pragma opaque;
     }
 
-    spec is_safe_call(): bool {
+    spec is_unbiasable(): bool {
         pragma opaque;
     }
 }
