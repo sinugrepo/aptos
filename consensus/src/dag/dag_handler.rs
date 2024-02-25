@@ -110,6 +110,8 @@ impl NetworkHandler {
             while let Some(new_round) = new_round_event.recv().await {
                 monitor!("dag_on_new_round_event", {
                     dag_driver_clone.enter_new_round(new_round).await;
+                });
+                monitor!("dag_node_receiver_gc", {
                     node_receiver_clone.gc();
                 });
             }
@@ -120,7 +122,7 @@ impl NetworkHandler {
         // A separate executor to ensure the message verification sender (above) and receiver (below) are
         // not blocking each other.
         // TODO: make this configurable
-        let executor = BoundedExecutor::new(64, Handle::current());
+        let executor = BoundedExecutor::new(200, Handle::current());
         loop {
             select! {
                 Some((msg, epoch, author, responder)) = verified_msg_stream.next() => {
